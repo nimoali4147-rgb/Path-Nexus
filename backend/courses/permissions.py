@@ -18,6 +18,7 @@ def is_admin(user):
         user.is_authenticated
         and (
             user.is_staff
+            or user.is_superuser
             or get_role(user) == "admin"
         )
     )
@@ -34,6 +35,9 @@ class IsStudent(BasePermission):
 
 
 class IsCourseOwnerOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated
+
     def has_object_permission(self, request, view, obj):
         return (
             is_admin(request.user)
