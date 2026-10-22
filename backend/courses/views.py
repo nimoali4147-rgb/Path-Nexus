@@ -53,20 +53,20 @@ class CourseViewSet(viewsets.ModelViewSet):
                 status=Course.Status.PUBLISHED
             )
 
-    def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            return [AllowAny()]
+def get_permissions(self):
+    if self.action in ["list", "retrieve"]:
+        return [AllowAny()]
 
-        if self.action == "create":
-            return [IsTeacher()]
+    if self.action in ["approve", "reject"]:
+        return [IsAdminUser()]
 
-        if self.action == "submit":
-            return [IsTeacher(), IsCourseOwnerOrAdmin()]
+    if self.action == "create":
+        return [IsTeacher()]
 
-        if self.action in ["approve", "reject"]:
-            return [IsAdminUser()]
+    if self.action in ["submit", "update", "partial_update", "destroy"]:
+        return [IsAuthenticated(), IsCourseOwnerOrAdmin()]
 
-        return [IsTeacher(), IsCourseOwnerOrAdmin()]
+    return [IsAuthenticated()]
 
     def perform_create(self, serializer):
         serializer.save(
@@ -85,15 +85,21 @@ class CourseViewSet(viewsets.ModelViewSet):
 
         return super().update(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
-        course = self.get_object()
+def destroy(self, request, *args, **kwargs):
+    course = self.get_object()
 
-        if course.status != Course.Status.DRAFT:
-            raise ValidationError(
-                "Only draft courses can be deleted."
-            )
+    allowed_statuses = [
+        Course.Status.DRAFT,
+        Course.Status.REJECTED,
+    ]
 
-        return super().destroy(request, *args, **kwargs)
+    if course.status not in allowed_statuses:
+        raise ValidationError(
+            "Only draft or rejected courses can be deleted."
+        )
+
+    return super().destroy(request, *args, **kwargs)
+
 
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
