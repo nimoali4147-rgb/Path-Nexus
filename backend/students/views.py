@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
-from path.permissions import IsPlatformAdmin
+from users.permissions import IsPlatformAdmin
 from .models import StudentProfile
 from .serializers import StudentProfileSerializers
 
