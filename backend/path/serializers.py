@@ -1,20 +1,24 @@
-
 from django.contrib.auth.models import User
+from django.db import transaction
 from rest_framework import serializers
 from .models import UserProfile
+from students.models import StudentProfile
+from teachers.models import TeacherProfile
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
     role = serializers.ChoiceField(
-        choices=UserProfile.Role_Choices,
-        write_only=True
+        choices=[("student", "Student"), ("teacher", "Teacher")],
+        write_only=True,
     )
+    password = serializers.CharField(write_only=True, min_length=8)
+
 
     class Meta:
         model = User
         fields = ["username", "email", "password", "role"]
 
+    @transaction.atomic
     def create(self, validated_data):
         role = validated_data.pop("role")
         password = validated_data.pop("password")
@@ -29,6 +33,11 @@ class RegisterSerializer(serializers.ModelSerializer):
             user=user,
             role=role
         )
+
+        if role == "student":
+            StudentProfile.objects.create(user=user)
+        elif role == "teacher":
+            TeacherProfile.objects.create(user=user)
 
         return user
 

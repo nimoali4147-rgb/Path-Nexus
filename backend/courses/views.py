@@ -1,10 +1,12 @@
 
 from django.shortcuts import get_object_or_404
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import ListCreateAPIView, DestroyAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from path.permissions import IsPlatformAdmin
 from rest_framework.response import Response
 
 from .models import Course, Enrollment
@@ -17,23 +19,17 @@ from .permissions import (
 )
 
 
-class IsAdminUser(IsAuthenticated):
-    def has_permission(self, request, view):
-        return (
-            super().has_permission(request, view)
-            and is_admin(request.user)
-        )
-
-
 class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
 
     def get_queryset(self):
         user = self.request.user
 
+        # Admins can see all courses.
         if user.is_authenticated and is_admin(user):
             return Course.objects.all()
 
+        # Teachers can see their own courses and all published courses.
         if (
             user.is_authenticated
             and getattr(
@@ -42,31 +38,39 @@ class CourseViewSet(viewsets.ModelViewSet):
                 None,
             ) == "teacher"
         ):
-             return (
-            Course.objects.filter(teacher=user)
-            | Course.objects.filter(
-                status=Course.Status.PUBLISHED
-            )
-            )
+            return (
+                Course.objects.filter(teacher=user)
+                | Course.objects.filter(
+                    status=Course.Status.PUBLISHED
+                )
+            ).distinct()
 
+        # Students and any visitors see published courses only.
         return Course.objects.filter(
-                status=Course.Status.PUBLISHED
-            )
+            status=Course.Status.PUBLISHED
+        )
 
-def get_permissions(self):
-    if self.action in ["list", "retrieve"]:
-        return [AllowAny()]
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [AllowAny()]
 
-    if self.action in ["approve", "reject"]:
-        return [IsAdminUser()]
+        if self.action in ["approve", "reject"]:
+            return [IsPlatformAdmin()]
 
-    if self.action == "create":
-        return [IsTeacher()]
+        if self.action == "create":
+            return [IsTeacher()]
 
-    if self.action in ["submit", "update", "partial_update", "destroy"]:
-        return [IsAuthenticated(), IsCourseOwnerOrAdmin()]
+        if self.action in [
+            "submit",
+            "update",
+            "destroy",
+        ]:
+            return [
+                IsAuthenticated(),
+                IsCourseOwnerOrAdmin(),
+            ]
 
-    return [IsAuthenticated()]
+        return [IsAuthenticated()]
 
     def perform_create(self, serializer):
         serializer.save(
@@ -79,27 +83,30 @@ def get_permissions(self):
 
         if course.status != Course.Status.DRAFT:
             raise ValidationError(
-                "Only draft courses can be edited. "
-                "A rejected course must be returned to draft first."
+                "Only draft courses can be edited."
             )
 
         return super().update(request, *args, **kwargs)
 
-def destroy(self, request, *args, **kwargs):
-    course = self.get_object()
 
-    allowed_statuses = [
-        Course.Status.DRAFT,
-        Course.Status.REJECTED,
-    ]
+    def destroy(self, request, *args, **kwargs):
+        course = self.get_object()
 
-    if course.status not in allowed_statuses:
-        raise ValidationError(
-            "Only draft or rejected courses can be deleted."
-        )
+        allowed_statuses = [
+            Course.Status.DRAFT,
+            Course.Status.REJECTED,
 
-    return super().destroy(request, *args, **kwargs)
+        ]
 
+        if is_admin(request.user):
+            return super().destroy(request, *args, **kwargs)
+
+        if course.status not in allowed_statuses:
+            raise ValidationError(
+                "Only draft or rejected courses can be deleted."
+            )
+
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
@@ -119,14 +126,17 @@ def destroy(self, request, *args, **kwargs):
         course.save(update_fields=["status"])
 
         return Response(
-            CourseSerializer(course).data,
+            CourseSerializer(
+                course,
+                context=self.get_serializer_context(),
+            ).data,
             status=status.HTTP_200_OK,
         )
 
     @action(
         detail=True,
         methods=["patch"],
-        permission_classes=[IsAdminUser],
+        permission_classes=[IsPlatformAdmin],
     )
     def approve(self, request, pk=None):
         course = self.get_object()
@@ -139,12 +149,18 @@ def destroy(self, request, *args, **kwargs):
         course.status = Course.Status.PUBLISHED
         course.save(update_fields=["status"])
 
-        return Response(CourseSerializer(course).data)
+        return Response(
+            CourseSerializer(
+                course,
+                context=self.get_serializer_context(),
+            ).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
         methods=["patch"],
-        permission_classes=[IsAdminUser],
+        permission_classes=[IsPlatformAdmin],
     )
     def reject(self, request, pk=None):
         course = self.get_object()
@@ -157,7 +173,13 @@ def destroy(self, request, *args, **kwargs):
         course.status = Course.Status.REJECTED
         course.save(update_fields=["status"])
 
-        return Response(CourseSerializer(course).data)
+        return Response(
+            CourseSerializer(
+                course,
+                context=self.get_serializer_context(),
+            ).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class EnrollmentListCreateView(ListCreateAPIView):
@@ -178,8 +200,7 @@ class EnrollmentListCreateView(ListCreateAPIView):
             status=Course.Status.PUBLISHED,
         )
 
-        # Until payment verification is implemented,
-        # students can enroll in free courses only.
+        # Paid-course access remains blocked until payment is verified.
         if not course.is_free:
             raise ValidationError(
                 "This is a paid course. Payment must be "
@@ -205,6 +226,7 @@ class EnrollmentDeleteView(DestroyAPIView):
     permission_classes = [IsStudent]
 
     def get_queryset(self):
+        # Students can delete only their own enrollments.
         return Enrollment.objects.filter(
             student=self.request.user
         )

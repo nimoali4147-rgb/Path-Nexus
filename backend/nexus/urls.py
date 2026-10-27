@@ -33,7 +33,7 @@ urlpatterns = [
          name='swagger-ui'),
     path('api/students/', include('students.urls')),
     path('api/teachers/', include('teachers.urls')),
-    path("api/", include("courses.urls")),
+    path("api/courses/", include("courses.urls")),
     path("api/auth/login/", TokenObtainPairView.as_view(),
          name="token_obtain_pair"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
