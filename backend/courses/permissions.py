@@ -1,5 +1,5 @@
 from rest_framework.permissions import BasePermission
-from path.permissions import is_platform_admin
+from users.permissions import is_platform_admin
 
 
 def get_role(user):
