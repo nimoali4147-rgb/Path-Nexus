@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework.reverse import reverse
 
-from path.models import UserProfile
+from users.models import UserProfile
 from students.models import StudentProfile
 
 
