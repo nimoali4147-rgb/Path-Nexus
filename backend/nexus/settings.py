@@ -26,6 +26,8 @@ SECRET_KEY = config('SECRET_KEY')
 
 DEBUG = config("DEBUG", default=False, cast=bool)
 
+AUTH_USER_MODEL = "users.User"
+
 ALLOWED_HOSTS = []
 
 
@@ -38,12 +40,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'path',
     'rest_framework',
     'drf_spectacular',
     'students',
     'teachers',
     'courses',
+    "users",
 ]
 
 MIDDLEWARE = [
