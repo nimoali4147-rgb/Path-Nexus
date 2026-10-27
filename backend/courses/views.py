@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import ListCreateAPIView, DestroyAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from path.permissions import IsPlatformAdmin
+from users.permissions import IsPlatformAdmin
 from rest_framework.response import Response
 
 from .models import Course, Enrollment
