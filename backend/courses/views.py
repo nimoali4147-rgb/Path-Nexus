@@ -30,14 +30,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             return Course.objects.all()
 
         # Teachers can see their own courses and all published courses.
-        if (
-            user.is_authenticated
-            and getattr(
-                getattr(user, "profile", None),
-                "role",
-                None,
-            ) == "teacher"
-        ):
+        if user.is_authenticated and user.role == "teacher":
             return (
                 Course.objects.filter(teacher=user)
                 | Course.objects.filter(
@@ -87,7 +80,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             )
 
         return super().update(request, *args, **kwargs)
-
 
     def destroy(self, request, *args, **kwargs):
         course = self.get_object()

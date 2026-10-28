@@ -15,12 +15,9 @@ class IsTeacherUser(BasePermission):
     message = "Only teachers can access this profile."
 
     def has_permission(self, request, view):
-        profile = getattr(request.user, "profile", None)
-
         return (
             request.user.is_authenticated
-            and profile is not None
-            and profile.role == "teacher"
+            and request.user.role == "teacher"
         )
 
 

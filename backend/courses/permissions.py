@@ -1,16 +1,11 @@
 from rest_framework.permissions import BasePermission
 from users.permissions import is_platform_admin
 
-
 def get_role(user):
     if not user.is_authenticated:
         return None
 
-    profile = getattr(user, "profile", None)
-    if profile is None:
-        return None
-
-    return profile.role
+    return user.role
 
 
 def is_admin(user):
@@ -30,7 +25,6 @@ class IsTeacher(BasePermission):
 
     def has_permission(self, request, view):
         return is_verified_teacher(request.user)
-
 
 class IsStudent(BasePermission):
     message = "Only students can perform this action."

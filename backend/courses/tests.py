@@ -1,226 +1,148 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APIClient
 
-from users.models import UserProfile
-from teachers.models import TeacherProfile
+from courses.models import Course, Enrollment
 from students.models import StudentProfile
-from .models import Course, Enrollment
+from teachers.models import TeacherProfile
+
+User = get_user_model()
 
 
-class CourseWorkflow(TestCase):
+class CourseWorkflowTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-
         self.teacher = User.objects.create_user(
-            username="teacher", password="SafePass123!"
+            username="omar", email="omar@example.com",
+            password="SafePass123!", role="teacher",
         )
-        UserProfile.objects.create(user=self.teacher, role="teacher")
         TeacherProfile.objects.create(user=self.teacher, is_verified=True)
 
-        self.new_teacher = User.objects.create_user(
-            username="new_teacher", password="SafePass123!"
+        self.unverified_teacher = User.objects.create_user(
+            username="newteacher", email="newteacher@example.com",
+            password="SafePass123!", role="teacher",
         )
-        UserProfile.objects.create(user=self.new_teacher, role="teacher")
-        TeacherProfile.objects.create(
-            user=self.new_teacher, is_verified=False
-        )
+        TeacherProfile.objects.create(user=self.unverified_teacher)
 
         self.student = User.objects.create_user(
-            username="student", password="SafePass123!"
+            username="student", email="student@example.com",
+            password="SafePass123!", role="student",
         )
-        UserProfile.objects.create(user=self.student, role="student")
         StudentProfile.objects.create(user=self.student)
 
-        self.url = reverse("course-list")
+        self.admin = User.objects.create_superuser(
+            username="admin", email="admin@example.com",
+            password="SafePass123!",
+        )
 
-    def course_data(self):
-        return {
-            "title": "Django Basics",
-            "description": "Learn Django fundamentals.",
+    def course_data(self, **overrides):
+        data = {
+            "title": "Python for Beginners",
+            "description": "Learn Python basics.",
             "category": "Programming",
             "price": "0.00",
             "is_free": True,
         }
-    # teachers can create course
-    def create_course(self):
-        self.client.force_authenticate(user=self.teacher)
-        response = self.client.post(
-            self.url, self.course_data(), format="json"
-        )
+        data.update(overrides)
+        return data
 
+    def test_verified_teacher_can_create_course(self):
+        self.client.force_authenticate(self.teacher)
+        response = self.client.post(
+            reverse("course-list"), self.course_data(), format="json"
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["status"], Course.Status.DRAFT)
         self.assertEqual(response.data["teacher"], self.teacher.id)
+        self.assertEqual(response.data["status"], Course.Status.DRAFT)
 
-    # unverified teacher can not create course
-    def unverified_teacher(self):
-        self.client.force_authenticate(user=self.new_teacher)
+    def test_unverified_teacher_cannot_create_course(self):
+        self.client.force_authenticate(self.unverified_teacher)
         response = self.client.post(
-            self.url, self.course_data(), format="json"
+            reverse("course-list"), self.course_data(), format="json"
         )
-
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    # students canot create course 
-    def student_course(self):
-        self.client.force_authenticate(user=self.student)
+    def test_student_cannot_create_course(self):
+        self.client.force_authenticate(self.student)
         response = self.client.post(
-            self.url, self.course_data(), format="json"
+            reverse("course-list"), self.course_data(), format="json"
         )
-
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    # teacher cannot approve course
-    def teacher_approve(self):
+    def test_teacher_can_edit_own_draft_course(self):
         course = Course.objects.create(
-            title="Pending course",
-            description="Description",
-            category="Programming",
-            teacher=self.teacher,
-            status=Course.Status.PENDING,
+            title="Old title", description="Description",
+            category="Programming", teacher=self.teacher,
         )
-
-        self.client.force_authenticate(user=self.teacher)
+        self.client.force_authenticate(self.teacher)
         response = self.client.patch(
-            reverse("course-approve", args=[course.id]), {}, format="json"
+            reverse("course-detail", args=[course.id]),
+            {"title": "Updated title"}, format="json",
         )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        course.refresh_from_db()
+        self.assertEqual(course.title, "Updated title")
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    # student can enroll a course
-    def test_student_can_enroll_once(self):
+    def test_teacher_can_submit_own_course(self):
         course = Course.objects.create(
-            title="Published course",
-            description="Description",
-            category="Programming",
-            teacher=self.teacher,
-            status=Course.Status.PUBLISHED,
-            is_free=True,
-            price=0,
+            title="Draft", description="Description",
+            category="Programming", teacher=self.teacher,
         )
-
-        self.client.force_authenticate(user=self.student)
-        url = reverse("enrollment-list-create")
-
-        response = self.client.post(
-            url, {"course": course.id}, format="json"
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(
-            Enrollment.objects.filter(
-                student=self.student, course=course
-            ).count(),
-            1,
-        )
-
-        response = self.client.post(
-            url, {"course": course.id}, format="json"
-        )
-
-        self.assertEqual(
-            response.status_code, status.HTTP_400_BAD_REQUEST
-        )
-        self.assertEqual(
-            Enrollment.objects.filter(
-                student=self.student, course=course
-            ).count(),
-            1,
-        )
-
-    # students cannot enroll unpublished course
-    def unpublished_course(self):
-        course = Course.objects.create(
-            title="Draft course",
-            description="Description",
-            category="Programming",
-            teacher=self.teacher,
-            status=Course.Status.DRAFT,
-        )
-
-        self.client.force_authenticate(user=self.student)
-        response = self.client.post(
-            reverse("enrollment-list-create"),
-            {"course": course.id},
-            format="json",
-        )
-
-        self.assertEqual(
-            response.status_code, status.HTTP_404_NOT_FOUND
-        )
-
-    # teacher can submit
-    def submit_course(self):
-        course = Course.objects.create(
-            title="Draft to submit",
-            description="Description",
-            category="Programming",
-            teacher=self.teacher,
-            status=Course.Status.DRAFT,
-        )
-
-        self.client.force_authenticate(user=self.teacher)
+        self.client.force_authenticate(self.teacher)
         response = self.client.post(
             reverse("course-submit", args=[course.id]), {}, format="json"
         )
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         course.refresh_from_db()
         self.assertEqual(course.status, Course.Status.PENDING)
 
-    # admin can approve  course
-    def admin_approve(self):
-        admin = User.objects.create_superuser(
-            username="admin",
-            email="admin@example.com",
-            password="SafePass123!",
-        )
-
+    def test_admin_can_approve_pending_course(self):
         course = Course.objects.create(
-            title="Pending course",
-            description="Description",
-            category="Programming",
-            teacher=self.teacher,
+            title="Pending", description="Description",
+            category="Programming", teacher=self.teacher,
             status=Course.Status.PENDING,
         )
-
-        self.client.force_authenticate(user=admin)
+        self.client.force_authenticate(self.admin)
         response = self.client.patch(
             reverse("course-approve", args=[course.id]), {}, format="json"
         )
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         course.refresh_from_db()
         self.assertEqual(course.status, Course.Status.PUBLISHED)
 
-    # student cannot enroll in paid course
-    def paid_course(self):
+    def test_student_can_enroll_in_published_free_course_once(self):
         course = Course.objects.create(
-            title="Paid course",
-            description="Description",
-            category="Programming",
-            teacher=self.teacher,
-            status=Course.Status.PUBLISHED,
-            is_free=False,
-            price="100.00",
+            title="Free", description="Description",
+            category="Programming", teacher=self.teacher,
+            status=Course.Status.PUBLISHED, price=0, is_free=True,
+        )
+        self.client.force_authenticate(self.student)
+        url = reverse("enrollment-list-create")
+        response = self.client.post(url, {"course": course.id}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        duplicate = self.client.post(
+            url, {"course": course.id}, format="json"
+        )
+        self.assertEqual(duplicate.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            Enrollment.objects.filter(student=self.student, course=course).count(),
+            1,
         )
 
-        self.client.force_authenticate(user=self.student)
+    def test_student_cannot_enroll_in_paid_course_without_payment(self):
+        course = Course.objects.create(
+            title="Paid", description="Description",
+            category="Programming", teacher=self.teacher,
+            status=Course.Status.PUBLISHED, price="1500.00", is_free=False,
+        )
+        self.client.force_authenticate(self.student)
         response = self.client.post(
             reverse("enrollment-list-create"),
-            {"course": course.id},
-            format="json",
+            {"course": course.id}, format="json",
         )
-
-        self.assertEqual(
-            response.status_code, status.HTTP_400_BAD_REQUEST
-        )
-        self.assertEqual(
-            Enrollment.objects.filter(
-                student=self.student, course=course
-            ).count(),
-            0,
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(
+            Enrollment.objects.filter(student=self.student, course=course).exists()
         )

@@ -14,14 +14,10 @@ class IsStudentUser(BasePermission):
     message = "Only students can access this profile."
 
     def has_permission(self, request, view):
-        profile = getattr(request.user, "profile", None)
-
         return (
             request.user.is_authenticated
-            and profile is not None
-            and profile.role == "student"
+            and request.user.role == "student"
         )
-
 
 # list students
 @api_view(["GET"])
