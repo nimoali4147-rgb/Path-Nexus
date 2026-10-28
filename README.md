@@ -101,15 +101,9 @@ Path Nexus APIs can be tested using Postman.
 6. Test student enrollment in published courses.
 7. Verify that permissions and enrollment restrictions work correctly.
 
-### Main API Endpoints
 
-| Endpoint | Purpose |
-|---|---|
-| `/api/courses/` | List and create courses |
-| `/api/enrollments/` | List and create enrollments |
-| `/api/` | API root, if configured |
-
-### Project Structure
+```
+## Project Structure
 
 Path-Nexus/
 ├── backend/
@@ -128,7 +122,7 @@ Path-Nexus/
 │   └── .env
 ├── README.md
 └── .gitignore
-
+```
 ## Future Improvements
 
 - Complete M-Pesa payment integration.
@@ -143,6 +137,3 @@ Path-Nexus/
 
 Software Engineering Student
 
-## License
-
-This project was developed for educational and learning purposes.
