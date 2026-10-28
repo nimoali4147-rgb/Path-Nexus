@@ -109,7 +109,7 @@ Path Nexus APIs can be tested using Postman.
 | `/api/enrollments/` | List and create enrollments |
 | `/api/` | API root, if configured |
 
-Project Structure
+### Project Structure
 
 Path-Nexus/
 ├── backend/
