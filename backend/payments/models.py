@@ -32,7 +32,7 @@ class Payment(models.Model):
         null=True
     )
     mpesa_receipt_number = models.CharField(
-        max_length=50,
+        max_length=50, 
         blank=True,
         null=True
     )

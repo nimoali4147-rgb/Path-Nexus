@@ -1,12 +1,11 @@
 
 from decimal import Decimal
-
+from rest_framework.generics import ListAPIView
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from courses.models import Course
 from .models import Payment
 from .serializers import PaymentSerializer
@@ -151,3 +150,16 @@ class MpesaCallbackView(APIView):
             {"ResultCode": 0, "ResultDesc": "Callback processed."},
             status=status.HTTP_200_OK,
         )
+
+
+
+
+
+class MyPaymentsView(ListAPIView):
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Payment.objects.filter(
+            student=self.request.user
+        ).order_by("-created_at")
