@@ -37,7 +37,7 @@ function Courses() {
             Courses Coming Soon
           </h2>
 
-          <p className="text-slate-400 max-w-lg mx-auto">
+          <p className="text-slate-500 max-w-lg mx-auto">
             Approved courses from our teachers will appear here.
             Start exploring once courses become available.
           </p>
