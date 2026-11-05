@@ -15,7 +15,7 @@ function Home() {
 
             <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
               Build Your Skills.
-              <span className="text-purple-500">
+              <span className="text-purple-600">
                 {" "}Shape Your Future.
               </span>
             </h1>
