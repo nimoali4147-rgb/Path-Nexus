@@ -92,7 +92,7 @@ function Navbar() {
             <Link
               to="/become-teacher"
               onClick={() => setMenuOpen(false)}
-              className="hover:text-purple-400"
+              className="hover:text-purple-500"
             >
               Become a Teacher
             </Link>
@@ -102,7 +102,7 @@ function Navbar() {
             <Link
               to="/login"
               onClick={() => setMenuOpen(false)}
-              className="hover:text-purple-400"
+              className="hover:text-purple-500"
             >
               Sign In
             </Link>
