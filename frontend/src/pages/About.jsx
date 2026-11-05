@@ -12,7 +12,7 @@ function About() {
               ABOUT US
             </p>
 
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+            <h1 className="text-3xl md:text-5xl font-bold mb-6">
               Empowering Learners to
               <span className="text-purple-500"> Grow and Succeed</span>
             </h1>
