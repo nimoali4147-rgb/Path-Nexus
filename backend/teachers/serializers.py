@@ -9,8 +9,8 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
         model = TeacherProfile
         fields = [
             "id", "user", "username", "bio", "qualifications",
-            "is_verified", "created_at",
+            "is_verified", "verification_status", "created_at",
         ]
         read_only_fields = [
-            "id", "user", "username", "is_verified", "created_at",
+            "id", "user", "username", "is_verified", "verification_status", "created_at",
         ]
