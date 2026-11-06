@@ -44,7 +44,11 @@ class RegisterSerializer(serializers.ModelSerializer):
             StudentProfile.objects.create(user=user)
 
         elif role == "teacher":
-            TeacherProfile.objects.create(user=user)
+            TeacherProfile.objects.create(
+                user=user,
+                verification_status="PENDING",
+                is_verified=False
+            )
 
         return user
 
@@ -55,6 +59,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             "email": instance.email,
             "role": instance.role,
         }
+
 
 class EmailLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -81,9 +86,20 @@ class EmailLoginSerializer(serializers.Serializer):
         if not user.is_active:
             raise AuthenticationFailed("This account is inactive.")
 
+        if user.account_status != "ACTIVE":
+            raise AuthenticationFailed("Your account is not active.")
+
         refresh = RefreshToken.for_user(user)
 
         return {
             "refresh": str(refresh),
             "access": str(refresh.access_token),
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "account_status": user.account_status,
+                "is_email_verified": user.is_email_verified,
+            },
         }
