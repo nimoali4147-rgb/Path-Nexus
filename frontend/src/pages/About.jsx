@@ -1,7 +1,7 @@
 
 function About() {
   return (
-    <main className="bg-slate-950 text-white">
+    <main className="bg-slate-900 text-white">
 
       {/* About Section */}
       <section className="py-20">
