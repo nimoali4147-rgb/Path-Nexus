@@ -5,6 +5,8 @@ import Home from './pages/Home.jsx'
 import About from './pages/About.jsx'
 import TeachersDashboard from './pages/TeachersDashboard.jsx'
 import Courses from './pages/Courses.jsx'
+import Register from './pages/Register.jsx'
+import Login from './pages/Login.jsx'
 
 function App() {
   return (
@@ -19,6 +21,8 @@ function App() {
           element={<TeachersDashboard />}
         />
         <Route path="/courses" element={<Courses />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
     </>
   )
