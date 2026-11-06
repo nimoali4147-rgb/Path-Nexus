@@ -1,7 +1,7 @@
 
 function Courses() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white px-6 py-16">
+    <div className="min-h-screen bg-slate-900 text-white px-6 py-16">
       <div className="max-w-7xl mx-auto">
 
         {/* Page Heading */}
