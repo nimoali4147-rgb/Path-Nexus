@@ -1,6 +1,6 @@
 
 from rest_framework import serializers
-from .models import Course, Enrollment
+from .models import Course, Enrollment, Lesson
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -16,6 +16,13 @@ class CourseSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "category",
+            "difficulty_level",
+            "duration_hours",
+            "learning_objectives",
+            "thumbnail",
+            "video_file",
+            "youtube_url",
+            "rejection_reason",
             "teacher",
             "teacher_username",
             "price",
@@ -29,6 +36,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "teacher_username",
             "status",
             "created_at",
+            "rejection_reason",
         ]
 
     def validate(self, attrs):
@@ -69,3 +77,42 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "enrolled_at",
         ]
         read_only_fields = ["id", "enrolled_at"]
+
+
+class LessonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = [
+            "id",
+            "course",
+            "title",
+            "description",
+            "video_file",
+            "youtube_url",
+            "order",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        video_file = attrs.get(
+            "video_file",
+            getattr(self.instance, "video_file", None),
+        )
+
+        youtube_url = attrs.get(
+            "youtube_url",
+            getattr(self.instance, "youtube_url", ""),
+        )
+
+        if not video_file and not youtube_url:
+            raise serializers.ValidationError(
+                "Provide either a video upload or a YouTube URL."
+            )
+
+        if video_file and youtube_url:
+            raise serializers.ValidationError(
+                "Choose either a video upload or a YouTube URL, not both."
+            )
+
+        return attrs
