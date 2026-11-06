@@ -16,6 +16,41 @@ class Course(models.Model):
     description = models.TextField()
     category = models.CharField(max_length=100)
 
+    difficulty_level = models.CharField(
+        max_length=20,
+        default="BEGINNER"
+    )
+
+    duration_hours = models.IntegerField(
+        null=True,
+        blank=True
+    )
+
+    learning_objectives = models.TextField(
+        default=""
+    )
+
+    thumbnail = models.ImageField(
+        upload_to="course_thumbnails/",
+        null=True,
+        blank=True
+    )
+
+    video_file = models.FileField(
+        upload_to="course_videos/",
+        null=True,
+        blank=True
+    )
+
+    youtube_url = models.URLField(
+        blank=True,
+        default=""
+    )
+    rejection_reason = models.TextField(
+        blank=True,
+        default=""
+    )
+
     teacher = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -80,3 +115,36 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.student} - {self.course}"
+
+
+class Lesson(models.Model):
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="lessons"
+    )
+
+    title = models.CharField(max_length=200)
+
+    description = models.TextField(blank=True)
+
+    video_file = models.FileField(
+        upload_to="lesson_videos/",
+        null=True,
+        blank=True
+    )
+
+    youtube_url = models.URLField(
+        blank=True,
+        default=""
+    )
+
+    order = models.PositiveIntegerField(default=1)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        return self.title
