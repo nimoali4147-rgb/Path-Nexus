@@ -63,7 +63,7 @@ function TeachersDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6 md:p-10">
+    <div className="min-h-screen bg-slate-900 text-white p-6 md:p-10">
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
