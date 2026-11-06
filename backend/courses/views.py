@@ -9,12 +9,17 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from users.permissions import IsPlatformAdmin
 from rest_framework.response import Response
 
-from .models import Course, Enrollment
-from .serializers import CourseSerializer, EnrollmentSerializer
+from .models import Course, Enrollment, Lesson
+from .serializers import (
+    CourseSerializer,
+    EnrollmentSerializer,
+    LessonSerializer,
+)
 from .permissions import (
     IsTeacher,
     IsStudent,
     IsCourseOwnerOrAdmin,
+    IsLessonOwnerOrAdmin,
     is_admin,
 )
 
@@ -29,14 +34,10 @@ class CourseViewSet(viewsets.ModelViewSet):
         if user.is_authenticated and is_admin(user):
             return Course.objects.all()
 
-        # Teachers can see their own courses and all published courses.
+        # Teachers can see their own courses
+
         if user.is_authenticated and user.role == "teacher":
-            return (
-                Course.objects.filter(teacher=user)
-                | Course.objects.filter(
-                    status=Course.Status.PUBLISHED
-                )
-            ).distinct()
+            return Course.objects.filter(teacher=user)
 
         # Students and any visitors see published courses only.
         return Course.objects.filter(
@@ -222,3 +223,46 @@ class EnrollmentDeleteView(DestroyAPIView):
         return Enrollment.objects.filter(
             student=self.request.user
         )
+
+
+class LessonViewSet(viewsets.ModelViewSet):
+    serializer_class = LessonSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.is_authenticated and is_admin(user):
+            return Lesson.objects.all()
+
+        if user.is_authenticated and user.role == "teacher":
+            return Lesson.objects.filter(
+                course__teacher=user
+            )
+
+        return Lesson.objects.filter(
+            course__status=Course.Status.PUBLISHED
+        )
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [AllowAny()]
+
+        if self.action == "create":
+            return [IsAuthenticated(), IsTeacher()]
+
+        return [
+            IsAuthenticated(),
+            IsLessonOwnerOrAdmin(),
+        ]
+
+    def perform_create(self, serializer):
+        course_id = self.request.data.get("course")
+
+        course = get_object_or_404(
+            Course,
+            id=course_id,
+            teacher=self.request.user,
+            status=Course.Status.DRAFT,
+        )
+
+        serializer.save(course=course)
