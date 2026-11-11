@@ -12,13 +12,9 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='course',
-            name='thumbnail',
-            field=models.ImageField(blank=True, null=True, upload_to='course_thumbnails/'),
-        ),
-        migrations.AddField(
-            model_name='course',
             name='video_file',
-            field=models.FileField(blank=True, null=True, upload_to='course_videos/'),
+            field=models.FileField(blank=True, null=True,
+                                   upload_to='course_videos/'),
         ),
         migrations.AddField(
             model_name='course',
