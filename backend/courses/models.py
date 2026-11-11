@@ -3,6 +3,10 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.core.validators import MinValueValidator
+from cloudinary_storage.storage import (
+    MediaCloudinaryStorage,
+    VideoMediaCloudinaryStorage,
+)
 
 
 class Course(models.Model):
@@ -32,12 +36,14 @@ class Course(models.Model):
 
     thumbnail = models.ImageField(
         upload_to="course_thumbnails/",
+        storage=MediaCloudinaryStorage(),
         null=True,
         blank=True
     )
 
     video_file = models.FileField(
         upload_to="course_videos/",
+        storage=VideoMediaCloudinaryStorage(),
         null=True,
         blank=True
     )
@@ -130,6 +136,7 @@ class Lesson(models.Model):
 
     video_file = models.FileField(
         upload_to="lesson_videos/",
+        storage=VideoMediaCloudinaryStorage(),
         null=True,
         blank=True
     )
@@ -145,6 +152,7 @@ class Lesson(models.Model):
 
     class Meta:
         ordering = ["order"]
+        db_table = "courses_course_lesson"
 
     def __str__(self):
         return self.title
