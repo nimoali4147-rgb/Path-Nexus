@@ -1,6 +1,7 @@
 from rest_framework.permissions import BasePermission
 from users.permissions import is_platform_admin
 
+
 def get_role(user):
     if not user.is_authenticated:
         return None
@@ -26,6 +27,7 @@ class IsTeacher(BasePermission):
     def has_permission(self, request, view):
         return is_verified_teacher(request.user)
 
+
 class IsStudent(BasePermission):
     message = "Only students can perform this action."
 
@@ -43,3 +45,11 @@ class IsCourseOwnerOrAdmin(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return is_admin(request.user) or obj.teacher_id == request.user.id
+
+
+class IsLessonOwnerOrAdmin(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return (
+            is_admin(request.user)
+            or obj.course.teacher_id == request.user.id
+        )
