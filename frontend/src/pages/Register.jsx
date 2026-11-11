@@ -1,6 +1,14 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  User,
+  Mail,
+  Lock,
+  GraduationCap,
+  UserPlus,
+  ArrowRight,
+} from 'lucide-react'
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -56,21 +64,21 @@ function Register() {
         }),
       })
 
-   const responseText = await response.text()
+      const responseText = await response.text()
 
-    console.log('Status:', response.status)
-    console.log('Content-Type:', response.headers.get('content-type'))
-    console.log('Server response:', responseText)
+      console.log('Status:', response.status)
+      console.log('Content-Type:', response.headers.get('content-type'))
+      console.log('Server response:', responseText)
 
-    let data
+      let data
 
-    try {
-    data = JSON.parse(responseText)
-    } catch {
-    throw new Error(
-        `Server returned HTML instead of JSON. HTTP status: ${response.status}. Check the browser console.`
-    )
-    }
+      try {
+        data = JSON.parse(responseText)
+      } catch {
+        throw new Error(
+          `Server returned HTML instead of JSON. HTTP status: ${response.status}. Check the browser console.`
+        )
+      }
 
       if (!response.ok) {
         const messages = Object.values(data).flat().join(' ')
@@ -96,148 +104,232 @@ function Register() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center px-6 py-12">
+  const inputClass =
+    'w-full bg-neutral-950 border border-neutral-700 rounded-xl pl-12 pr-4 py-3.5 text-stone-100 placeholder:text-stone-600 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10'
+
+  const labelClass =
+    'block text-sm font-medium text-stone-300 mb-2'
+
+ return (
+  <div
+    className="min-h-screen relative bg-neutral-950 bg-cover bg-center bg-fixed text-stone-100 flex items-center justify-center px-6 py-6"
+    style={{
+      backgroundImage:
+         "url('/image/background.png')",
+    }}
+  >
+
       <div className="w-full max-w-lg">
 
-        <div className="text-center mb-8">
-          <Link to="/" className="text-3xl font-bold">
-            PATH<span className="text-purple-500">NEXUS</span>
-          </Link>
+        {/* Brand */}
+        <div className="text-center mb-5">
 
-          <h1 className="text-3xl font-bold mt-8 mb-3">
+        
+
+          <div className="flex justify-center mt-2 mb-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-400/10 border border-amber-400/20">
+              <UserPlus size={30} className="text-amber-400" />
+            </div>
+          </div>
+
+          <h1 className="text-3xl font-bold mb-3">
             Create Your Account
           </h1>
 
-          <p className="text-slate-400">
+          <p className="text-stone-400">
             Join PATH NEXUS and start your learning journey.
           </p>
+
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8">
+        {/* Registration Form */}
+    <div className="bg-neutral-900/90 backdrop-blur-md border border-amber-600/30 rounded-2xl p-5 md:p-6 shadow-2xl shadow-black/50">
 
+          {/* Error Message */}
           {error && (
-            <p className="bg-red-500/10 border border-red-500 text-red-400 rounded-lg p-3 mb-5">
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 mb-5 text-sm">
               {error}
-            </p>
+            </div>
           )}
 
+          {/* Success Message */}
           {success && (
-            <div className="bg-green-500/10 border border-green-500 text-green-400 rounded-lg p-3 mb-5">
+            <div className="bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg p-3 mb-5 text-sm">
               {success}
+
               <Link
                 to="/login"
-                className="block mt-2 underline font-semibold"
+                className="flex items-center gap-2 mt-3 font-semibold underline"
               >
                 Continue to Login
+                <ArrowRight size={16} />
               </Link>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
 
+            {/* Username */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className={labelClass}>
                 Username
               </label>
 
-              <input
-                type="text"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                placeholder="Enter your username"
-                required
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 outline-none focus:border-purple-500"
-              />
+              <div className="relative">
+                <User
+                  size={19}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500"
+                />
+
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="Enter your username"
+                  required
+                  className={inputClass}
+                />
+              </div>
             </div>
 
+            {/* Email */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className={labelClass}>
                 Email Address
               </label>
 
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter your email"
-                required
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 outline-none focus:border-purple-500"
-              />
+              <div className="relative">
+                <Mail
+                  size={19}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500"
+                />
+
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter your email"
+                  required
+                  className={inputClass}
+                />
+              </div>
             </div>
 
+            {/* Account Type */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className={labelClass}>
                 Account Type
               </label>
 
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 outline-none focus:border-purple-500"
-              >
-                <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-              </select>
+              <div className="relative">
+                <GraduationCap
+                  size={19}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none"
+                />
+
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  className={`${inputClass} appearance-none cursor-pointer`}
+                >
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
+                </select>
+              </div>
             </div>
 
+            {/* Password */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className={labelClass}>
                 Password
               </label>
 
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Create a password"
-                required
-                minLength={8}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 outline-none focus:border-purple-500"
-              />
+              <div className="relative">
+                <Lock
+                  size={19}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500"
+                />
+
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Create a password"
+                  required
+                  minLength={8}
+                  className={inputClass}
+                />
+              </div>
+
+              <p className="text-xs text-stone-500 mt-2">
+                Password must contain at least 8 characters.
+              </p>
             </div>
 
+            {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className={labelClass}>
                 Confirm Password
               </label>
 
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="Confirm your password"
-                required
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 outline-none focus:border-purple-500"
-              />
+              <div className="relative">
+                <Lock
+                  size={19}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500"
+                />
+
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="Confirm your password"
+                  required
+                  className={inputClass}
+                />
+              </div>
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg py-3 font-semibold transition"
+              className="w-full flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-neutral-950 rounded-xl py-3.5 font-bold transition shadow-lg shadow-amber-400/10"
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? (
+                'Creating Account...'
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight size={19} />
+                </>
+              )}
             </button>
 
           </form>
 
-          <p className="text-center text-slate-400 mt-6">
+          {/* Login Link */}
+          <p className="text-center text-stone-400 mt-7 text-sm">
             Already have an account?{' '}
+
             <Link
               to="/login"
-              className="text-purple-400 hover:text-purple-300 font-semibold"
+              className="text-amber-400 hover:text-amber-500 font-semibold transition"
             >
               Sign In
             </Link>
           </p>
 
         </div>
+
+        <p className="text-center text-xs text-stone-600 mt-8">
+          © {new Date().getFullYear()} PATH NEXUS. All rights reserved.
+        </p>
+
       </div>
     </div>
   )
