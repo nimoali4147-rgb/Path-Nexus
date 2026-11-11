@@ -1,5 +1,7 @@
+
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated
@@ -10,7 +12,6 @@ from .models import TeacherProfile
 from .serializers import TeacherProfileSerializer
 
 
-# only teachers can access their profile
 class IsTeacherUser(BasePermission):
     message = "Only teachers can access this profile."
 
@@ -21,7 +22,6 @@ class IsTeacherUser(BasePermission):
         )
 
 
-# teacher own profile
 class TeacherOwnProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = TeacherProfileSerializer
     permission_classes = [IsAuthenticated, IsTeacherUser]
@@ -33,7 +33,6 @@ class TeacherOwnProfileView(generics.RetrieveUpdateAPIView):
         return get_object_or_404(self.get_queryset())
 
 
-# list teachers
 @api_view(["GET"])
 @permission_classes([IsPlatformAdmin])
 def teacher_list(request):
@@ -43,13 +42,17 @@ def teacher_list(request):
     return Response(serializer.data)
 
 
-# verify teacher
 @api_view(["PATCH"])
 @permission_classes([IsPlatformAdmin])
 def verify_teacher(request, pk):
     teacher = get_object_or_404(TeacherProfile, pk=pk)
+
     teacher.is_verified = True
-    teacher.save(update_fields=["is_verified"])
+    teacher.verification_status = "VERIFIED"
+
+    teacher.save(
+        update_fields=["is_verified", "verification_status"]
+    )
 
     return Response({
         "message": "Teacher verified successfully.",
@@ -57,13 +60,17 @@ def verify_teacher(request, pk):
     })
 
 
-# reject teacher
 @api_view(["PATCH"])
 @permission_classes([IsPlatformAdmin])
 def reject_teacher(request, pk):
     teacher = get_object_or_404(TeacherProfile, pk=pk)
+
     teacher.is_verified = False
-    teacher.save(update_fields=["is_verified"])
+    teacher.verification_status = "REJECTED"
+
+    teacher.save(
+        update_fields=["is_verified", "verification_status"]
+    )
 
     return Response({
         "message": "Teacher verification rejected.",
@@ -71,13 +78,14 @@ def reject_teacher(request, pk):
     })
 
 
-# delete teacher
 @api_view(["DELETE"])
 @permission_classes([IsPlatformAdmin])
 def delete_teacher(request, pk):
     teacher = get_object_or_404(
-        TeacherProfile.objects.select_related("user"), pk=pk
+        TeacherProfile.objects.select_related("user"),
+        pk=pk,
     )
+
     username = teacher.user.username
 
     with transaction.atomic():
