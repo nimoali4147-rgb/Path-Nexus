@@ -92,15 +92,14 @@ def send_stk_push(
     }
 
     response = requests.post(
-            url,
-            json=payload,
-            headers=headers,
-            timeout=30
-        )
+        url,
+        json=payload,
+        headers=headers,
+        timeout=30
+    )
 
     print("MPESA STATUS:", response.status_code)
     print("MPESA RESPONSE:", response.text)
 
     response.raise_for_status()
     return response.json()
-

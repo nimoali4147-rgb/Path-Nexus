@@ -3,11 +3,11 @@ from django.contrib.auth import get_user_model
 from django.db.models import Sum, Count, Q
 
 from rest_framework import generics, status, serializers
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from rest_framework.generics import DestroyAPIView
 from courses.models import Course, Enrollment
 from teachers.models import TeacherProfile
 from students.models import StudentProfile
@@ -183,18 +183,9 @@ class AdminEnrollmentListView(generics.ListAPIView):
 
 
 # ADMIN: DELETE AN ENROLLMENT
-class AdminEnrollmentDeleteView(APIView):
-    permission_classes = [IsPlatformAdmin]
-
-    def delete(self, request, pk):
-        enrollment = generics.get_object_or_404(
-            Enrollment,
-            pk=pk,
-        )
-
-        enrollment.delete()
-
-        return Response(
-            {"message": "Enrollment removed successfully."},
-            status=status.HTTP_200_OK,
-        )
+class AdminEnrollmentDeleteView(DestroyAPIView):
+    serializer_class = AdminEnrollmentSerializer
+    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+    queryset = Enrollment.objects.select_related(
+        "student", "course"
+    )

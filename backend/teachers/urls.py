@@ -11,3 +11,4 @@ urlpatterns = [
     path("<int:pk>/reject/", reject_teacher, name="reject-teacher"),
     path("<int:pk>/", delete_teacher, name="delete-teacher"),
 ]
+

@@ -30,10 +30,10 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 AUTH_USER_MODEL = "users.User"
 
 ALLOWED_HOSTS = [
-    "127.0.0.1",
     "localhost",
+    "127.0.0.1",
+    "rhyme-scratch-watch.ngrok-free.dev",
 ]
-
 
 # Application definition
 

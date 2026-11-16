@@ -1,7 +1,7 @@
 
-from django.db import transaction
+from django.db import transaction, connection
 from django.shortcuts import get_object_or_404
-
+from courses.models import Course
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated
@@ -88,10 +88,56 @@ def delete_teacher(request, pk):
 
     username = teacher.user.username
 
+    course_ids = list(
+        Course.objects.filter(
+            teacher=teacher.user
+        ).values_list("id", flat=True)
+    )
+
     with transaction.atomic():
+        if course_ids:
+            with connection.cursor() as cursor:
+                # Delete lesson progress first
+                cursor.execute(
+                    """
+                    DELETE FROM courses_lessonprogress
+                    WHERE lesson_id IN (
+                        SELECT l.id
+                        FROM courses_lesson l
+                        INNER JOIN courses_coursesection s
+                            ON l.section_id = s.id
+                        WHERE s.course_id = ANY(%s)
+                    )
+                    """,
+                    [course_ids],
+                )
+
+                # Delete lessons
+                cursor.execute(
+                    """
+                    DELETE FROM courses_lesson
+                    WHERE section_id IN (
+                        SELECT id
+                        FROM courses_coursesection
+                        WHERE course_id = ANY(%s)
+                    )
+                    """,
+                    [course_ids],
+                )
+
+                # Delete course sections
+                cursor.execute(
+                    """
+                    DELETE FROM courses_coursesection
+                    WHERE course_id = ANY(%s)
+                    """,
+                    [course_ids],
+                )
+
+        # Delete teacher and related courses
         teacher.user.delete()
 
     return Response(
-        {"message": f"'{username}' deleted successfully."},
+        {"message": f"Teacher '{username}' and related courses deleted successfully."},
         status=status.HTTP_200_OK,
     )

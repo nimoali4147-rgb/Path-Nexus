@@ -2,15 +2,17 @@
 from django.db import models
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework.views import APIView
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import ListCreateAPIView, DestroyAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from users.permissions import IsPlatformAdmin
+
 from .models import Course, Enrollment, Lesson
 from .serializers import (
     CourseSerializer,
@@ -33,18 +35,22 @@ class CourseViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         if user.is_authenticated and is_admin(user):
-            return Course.objects.all()
+            return Course.objects.all().select_related("teacher")
 
         if user.is_authenticated and user.role == "teacher":
-            return Course.objects.filter(teacher=user)
+            return Course.objects.filter(
+                teacher=user
+            ).select_related("teacher")
 
         if user.is_authenticated:
             return Course.objects.filter(
                 models.Q(status=Course.Status.PUBLISHED)
                 | models.Q(enrollments__student=user)
-            ).distinct()
+            ).distinct().select_related("teacher")
 
-        return Course.objects.filter(status=Course.Status.PUBLISHED)
+        return Course.objects.filter(
+            status=Course.Status.PUBLISHED
+        ).select_related("teacher")
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
@@ -54,7 +60,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             return [IsPlatformAdmin()]
 
         if self.action == "create":
-            return [IsTeacher()]
+            return [IsAuthenticated(), IsTeacher()]
 
         if self.action in [
             "submit",
@@ -64,7 +70,10 @@ class CourseViewSet(viewsets.ModelViewSet):
             "partial_update",
             "destroy",
         ]:
-            return [IsAuthenticated(), IsCourseOwnerOrAdmin()]
+            return [
+                IsAuthenticated(),
+                IsCourseOwnerOrAdmin(),
+            ]
 
         return [IsAuthenticated()]
 
@@ -94,17 +103,26 @@ class CourseViewSet(viewsets.ModelViewSet):
         def destroy(self, request, *args, **kwargs):
             course = self.get_object()
 
-            if (
-                course.teacher_id != request.user.id
-                and not is_admin(request.user)
-            ):
+            # Admin can delete any course.
+            if is_admin(request.user):
+                return super().destroy(request, *args, **kwargs)
+
+            # Teachers can delete only their own courses.
+            if course.teacher_id != request.user.id:
                 raise PermissionDenied(
                     "You can delete only your own course."
                 )
 
+            # Teachers cannot delete courses with enrollments.
             if course.enrollments.exists():
                 raise ValidationError(
                     "Students are enrolled in this course. Unpublish it instead."
+                )
+
+            # Teachers cannot delete courses with payment records.
+            if course.payments.exists():
+                raise ValidationError(
+                    "This course has payment records. Unpublish it instead."
                 )
 
             return super().destroy(request, *args, **kwargs)
@@ -114,7 +132,9 @@ class CourseViewSet(viewsets.ModelViewSet):
         course = self.get_object()
 
         if course.teacher_id != request.user.pk:
-            raise PermissionDenied("You can submit only your own course.")
+            raise PermissionDenied(
+                "You can submit only your own course."
+            )
 
         if course.status not in [
             Course.Status.DRAFT,
@@ -126,7 +146,10 @@ class CourseViewSet(viewsets.ModelViewSet):
 
         course.status = Course.Status.PENDING
         course.rejection_reason = ""
-        course.save(update_fields=["status", "rejection_reason"])
+
+        course.save(
+            update_fields=["status", "rejection_reason"]
+        )
 
         return Response(
             CourseSerializer(
@@ -207,7 +230,10 @@ class CourseViewSet(viewsets.ModelViewSet):
 
         course.status = Course.Status.PUBLISHED
         course.rejection_reason = ""
-        course.save(update_fields=["status", "rejection_reason"])
+
+        course.save(
+            update_fields=["status", "rejection_reason"]
+        )
 
         return Response(
             CourseSerializer(
@@ -235,7 +261,10 @@ class CourseViewSet(viewsets.ModelViewSet):
             "rejection_reason",
             "",
         )
-        course.save(update_fields=["status", "rejection_reason"])
+
+        course.save(
+            update_fields=["status", "rejection_reason"]
+        )
 
         return Response(
             CourseSerializer(
@@ -248,7 +277,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 
 class EnrollmentListCreateView(ListCreateAPIView):
     serializer_class = EnrollmentSerializer
-    permission_classes = [IsStudent]
+    permission_classes = [IsAuthenticated, IsStudent]
 
     def get_queryset(self):
         return Enrollment.objects.filter(
@@ -266,8 +295,8 @@ class EnrollmentListCreateView(ListCreateAPIView):
 
         if not course.is_free:
             raise ValidationError(
-                "This is a paid course. Payment must be implemented "
-                "and verified before enrollment."
+                "This is a paid course. Payment must be verified "
+                "before enrollment."
             )
 
         if Enrollment.objects.filter(
@@ -286,16 +315,30 @@ class EnrollmentListCreateView(ListCreateAPIView):
 
 class EnrollmentDeleteView(DestroyAPIView):
     serializer_class = EnrollmentSerializer
-    permission_classes = [IsStudent]
+
+    def get_permissions(self):
+        if (
+            self.request.user.is_authenticated
+            and is_admin(self.request.user)
+        ):
+            return [IsAuthenticated()]
+
+        return [IsAuthenticated(), IsStudent()]
 
     def get_queryset(self):
+        if (
+            self.request.user.is_authenticated
+            and is_admin(self.request.user)
+        ):
+            return Enrollment.objects.all()
+
         return Enrollment.objects.filter(
             student=self.request.user
         )
 
 
 class EnrollmentProgressView(APIView):
-    permission_classes = [IsStudent]
+    permission_classes = [IsAuthenticated, IsStudent]
 
     def get_enrollment(self, request, pk):
         return get_object_or_404(
@@ -307,10 +350,11 @@ class EnrollmentProgressView(APIView):
     def build_response(self, enrollment):
         course = enrollment.course
         lessons = course.lessons.all().order_by("order", "id")
+
         completed_ids = list(
-            enrollment.completed_lessons
-            .filter(course=course)
-            .values_list("id", flat=True)
+            enrollment.completed_lessons.filter(
+                course=course
+            ).values_list("id", flat=True)
         )
 
         total = lessons.count()
@@ -319,12 +363,16 @@ class EnrollmentProgressView(APIView):
         return {
             "id": enrollment.id,
             "course": CourseSerializer(course).data,
-            "lessons": LessonSerializer(lessons, many=True).data,
+            "lessons": LessonSerializer(
+                lessons,
+                many=True,
+            ).data,
             "completed_lesson_ids": completed_ids,
             "lesson_count": total,
             "completed_lessons_count": completed_count,
             "progress_percent": round(
-                completed_count / total * 100, 2
+                completed_count / total * 100,
+                2,
             ) if total else 0,
             "completed_at": enrollment.completed_at,
         }
@@ -338,23 +386,24 @@ class EnrollmentProgressView(APIView):
         lesson_id = request.data.get("lesson_id")
         completed = request.data.get("completed", True)
 
-        if lesson_id is not None:
-            lesson = get_object_or_404(
-                Lesson,
-                pk=lesson_id,
-                course=enrollment.course,
-            )
-
-            if completed:
-                enrollment.completed_lessons.add(lesson)
-            else:
-                enrollment.completed_lessons.remove(lesson)
-        else:
+        if lesson_id is None:
             raise ValidationError(
                 "A lesson_id is required to update lesson progress."
             )
 
+        lesson = get_object_or_404(
+            Lesson,
+            pk=lesson_id,
+            course=enrollment.course,
+        )
+
+        if completed:
+            enrollment.completed_lessons.add(lesson)
+        else:
+            enrollment.completed_lessons.remove(lesson)
+
         total = enrollment.course.lessons.count()
+
         completed_count = enrollment.completed_lessons.filter(
             course=enrollment.course
         ).count()
@@ -366,8 +415,12 @@ class EnrollmentProgressView(APIView):
         )
 
         enrollment.last_accessed_at = timezone.now()
+
         enrollment.save(
-            update_fields=["completed_at", "last_accessed_at"]
+            update_fields=[
+                "completed_at",
+                "last_accessed_at",
+            ]
         )
 
         return Response(self.build_response(enrollment))
@@ -407,7 +460,10 @@ class LessonViewSet(viewsets.ModelViewSet):
         if self.action in ["complete", "start"]:
             return [IsAuthenticated(), IsStudent()]
 
-        return [IsAuthenticated(), IsLessonOwnerOrAdmin()]
+        return [
+            IsAuthenticated(),
+            IsLessonOwnerOrAdmin(),
+        ]
 
     def perform_create(self, serializer):
         course_id = self.request.data.get("course")
@@ -464,6 +520,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         enrollment.last_accessed_at = timezone.now()
 
         total_lessons = lesson.course.lessons.count()
+
         completed_count = enrollment.completed_lessons.filter(
             course=lesson.course
         ).count()
@@ -474,7 +531,10 @@ class LessonViewSet(viewsets.ModelViewSet):
             enrollment.completed_at = None
 
         enrollment.save(
-            update_fields=["last_accessed_at", "completed_at"]
+            update_fields=[
+                "last_accessed_at",
+                "completed_at",
+            ]
         )
 
         return Response(
