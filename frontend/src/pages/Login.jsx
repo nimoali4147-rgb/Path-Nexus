@@ -52,16 +52,16 @@ function Login() {
       login(data.user, data.access, data.refresh)
 
       // Redirect according to user role
-     
-if (data.user.role === 'admin') {
-  navigate('/admin')
-} else if (data.user.role === 'teacher') {
-  navigate('/teacher')
-} else if (data.user.role === 'student') {
-  navigate('/student')
-} else {
-  throw new Error('Unknown account role.')
-}
+          
+      if (data.user.role === 'admin') {
+        navigate('/admin')
+      } else if (data.user.role === 'teacher') {
+        navigate('/teacher')
+      } else if (data.user.role === 'student') {
+        navigate('/student')
+      } else {
+        throw new Error('Unknown account role.')
+      }
 
 
     } catch (err) {
