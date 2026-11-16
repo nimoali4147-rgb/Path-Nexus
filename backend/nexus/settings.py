@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/6.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
-import dj_database_url
+
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
@@ -124,7 +124,6 @@ DATABASES = {
         'PORT': config('DB_PORT', default='5432'),
     }
 }
-
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS':
