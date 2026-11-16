@@ -30,11 +30,26 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 AUTH_USER_MODEL = "users.User"
 
 ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "rhyme-scratch-watch.ngrok-free.dev",
+    host.strip()
+    for host in config(
+        'ALLOWED_HOSTS',
+        default='localhost,127.0.0.1'
+    ).split(',')
 ]
 
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in config(
+        'CORS_ALLOWED_ORIGINS',
+        default='http://localhost:5173,http://127.0.0.1:5173'
+    ).split(',')
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in config('CSRF_TRUSTED_ORIGINS', default='').split(',')
+    if origin.strip()
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -59,6 +74,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -66,8 +82,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 
@@ -191,10 +205,9 @@ STORAGES = {
         'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
     },
     'staticfiles': {
-        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
     },
 }
-
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
