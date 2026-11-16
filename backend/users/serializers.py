@@ -5,6 +5,7 @@ from students.models import StudentProfile
 from teachers.models import TeacherProfile
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
+from .permissions import is_platform_admin
 
 
 User = get_user_model()
@@ -98,7 +99,7 @@ class EmailLoginSerializer(serializers.Serializer):
                 "id": user.id,
                 "username": user.username,
                 "email": user.email,
-                "role": user.role,
+               "role": "admin" if is_platform_admin(user) else user.role,
                 "account_status": user.account_status,
                 "is_email_verified": user.is_email_verified,
             },

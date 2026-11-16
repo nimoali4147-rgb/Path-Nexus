@@ -61,6 +61,24 @@ class CourseSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def validate_title(self, value):
+        teacher = self.context["request"].user
+
+        duplicates = Course.objects.filter(
+            teacher=teacher,
+            title__iexact=value.strip(),
+        )
+
+        if self.instance:
+            duplicates = duplicates.exclude(pk=self.instance.pk)
+
+        if duplicates.exists():
+            raise serializers.ValidationError(
+                "You already have a course with this title."
+            )
+
+        return value.strip()
+
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(
@@ -68,15 +86,52 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    course_thumbnail = serializers.ImageField(
+        source="course.thumbnail",
+        read_only=True,
+    )
+
+    completed_lessons = serializers.PrimaryKeyRelatedField(
+        many=True,
+        read_only=True,
+    )
+
+    progress_percentage = serializers.SerializerMethodField()
+
     class Meta:
         model = Enrollment
         fields = [
             "id",
             "course",
             "course_title",
+            "course_thumbnail",
             "enrolled_at",
+            "completed_lessons",
+            "last_accessed_at",
+            "completed_at",
+            "progress_percentage",
         ]
-        read_only_fields = ["id", "enrolled_at"]
+        read_only_fields = [
+            "id",
+            "enrolled_at",
+            "completed_lessons",
+            "last_accessed_at",
+            "completed_at",
+            "progress_percentage",
+            "course_thumbnail",
+        ]
+
+    def get_progress_percentage(self, enrollment):
+        total_lessons = enrollment.course.lessons.count()
+
+        if total_lessons == 0:
+            return 0
+
+        completed = enrollment.completed_lessons.filter(
+            course=enrollment.course
+        ).count()
+
+        return round((completed / total_lessons) * 100)
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -116,3 +171,33 @@ class LessonSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+
+class TeacherStudentSerializer(serializers.ModelSerializer):
+    student_id = serializers.IntegerField(
+        source="student.id",
+        read_only=True
+    )
+    student_name = serializers.CharField(
+        source="student.username",
+        read_only=True
+    )
+    student_email = serializers.EmailField(
+        source="student.email",
+        read_only=True
+    )
+    course_title = serializers.CharField(
+        source="course.title",
+        read_only=True
+    )
+
+    class Meta:
+        model = Enrollment
+        fields = [
+            "id",
+            "student_id",
+            "student_name",
+            "student_email",
+            "course_title",
+            "enrolled_at",
+        ]

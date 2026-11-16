@@ -7,6 +7,8 @@ from .views import (
     LessonViewSet,
     EnrollmentListCreateView,
     EnrollmentDeleteView,
+    EnrollmentProgressView,
+    TeacherStudentsListView,
 )
 
 router = DefaultRouter()
@@ -28,4 +30,16 @@ urlpatterns = [
         EnrollmentDeleteView.as_view(),
         name="enrollment-delete",
     ),
+    path(
+        "enrollments/<int:pk>/progress/",
+        EnrollmentProgressView.as_view(),
+        name="enrollment-progress",
+    ),
+    path(
+        "teacher/students/",
+        TeacherStudentsListView.as_view({"get": "list"}),
+        name="teacher-students",
+    ),
+
+
 ]

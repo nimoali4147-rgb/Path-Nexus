@@ -14,6 +14,7 @@ class Course(models.Model):
         DRAFT = "DRAFT", "Draft"
         PENDING = "PENDING", "Pending"
         PUBLISHED = "PUBLISHED", "Published"
+        UNPUBLISHED = "UNPUBLISHED", "Unpublished"
         REJECTED = "REJECTED", "Rejected"
 
     title = models.CharField(max_length=200)
@@ -109,6 +110,23 @@ class Enrollment(models.Model):
     )
 
     enrolled_at = models.DateTimeField(auto_now_add=True)
+
+    # Student learning progress
+    completed_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
+
+    completed_lessons = models.ManyToManyField(
+        "courses.Lesson",
+        blank=True,
+        related_name="completed_enrollments"
+    )
+
+    last_accessed_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
 
     class Meta:
         ordering = ["-enrolled_at"]

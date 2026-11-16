@@ -10,6 +10,7 @@ from courses.models import Course
 from .models import Payment
 from .serializers import PaymentSerializer
 from .utils import send_stk_push
+from users.permissions import IsPlatformAdmin
 
 import logging
 
@@ -152,9 +153,6 @@ class MpesaCallbackView(APIView):
         )
 
 
-
-
-
 class MyPaymentsView(ListAPIView):
     serializer_class = PaymentSerializer
     permission_classes = [IsAuthenticated]
@@ -162,4 +160,34 @@ class MyPaymentsView(ListAPIView):
     def get_queryset(self):
         return Payment.objects.filter(
             student=self.request.user
+        ).order_by("-created_at")
+
+
+class PaymentStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, payment_id):
+        payment = get_object_or_404(
+            Payment,
+            id=payment_id,
+            student=request.user,
+        )
+
+        return Response({
+            "payment_id": payment.id,
+            "status": payment.status,
+            "receipt_number": payment.mpesa_receipt_number,
+        })
+
+# ADMIN: VIEW ALL PLATFORM PAYMENTS
+
+
+class AdminPaymentListView(ListAPIView):
+    serializer_class = PaymentSerializer
+    permission_classes = [IsPlatformAdmin]
+
+    def get_queryset(self):
+        return Payment.objects.select_related(
+            "student",
+            "course",
         ).order_by("-created_at")
