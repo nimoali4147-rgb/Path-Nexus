@@ -27,3 +27,18 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} - {self.role}"
+
+
+class PasswordResetCode(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="password_reset_codes")
+    code_hash = models.CharField(max_length=256)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Password reset for user {self.user_id}"
