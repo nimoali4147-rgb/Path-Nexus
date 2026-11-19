@@ -12,6 +12,8 @@ import {
   BarChart3,
 } from 'lucide-react'
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+
 function CourseDetails() {
   const { courseId } = useParams()
   const navigate = useNavigate()
@@ -27,7 +29,7 @@ function CourseDetails() {
   useEffect(() => {
     async function loadCourse() {
       try {
-        const response = await fetch(`/api/courses/${courseId}/`)
+        const response = await fetch(`${API_BASE_URL}/api/courses/${courseId}/`)
         const data = await response.json()
 
         if (!response.ok) {
@@ -53,7 +55,7 @@ function CourseDetails() {
       }
 
       try {
-        const response = await fetch('/api/enrollments/', {
+        const response = await fetch(`${API_BASE_URL}/api/enrollments/`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('access')}`,
           },
@@ -105,7 +107,7 @@ function CourseDetails() {
     setError('')
 
     try {
-      const response = await fetch('/api/enrollments/', {
+      const response = await fetch(`${API_BASE_URL}/api/enrollments/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
