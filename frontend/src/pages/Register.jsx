@@ -10,6 +10,8 @@ import {
   ArrowRight,
 } from 'lucide-react'
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+
 function Register() {
   const [formData, setFormData] = useState({
     username: '',
@@ -51,7 +53,7 @@ function Register() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/register/', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
