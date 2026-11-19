@@ -37,3 +37,9 @@ urlpatterns = [
     path("api/", include("courses.urls")),
     path("api/payments/", include("payments.urls")),
 ]
+
+# Keep API failures machine-readable instead of returning Django HTML error pages.
+handler400 = "nexus.handlers.handler400"
+handler403 = "nexus.handlers.handler403"
+handler404 = "nexus.handlers.handler404"
+handler500 = "nexus.handlers.handler500"
