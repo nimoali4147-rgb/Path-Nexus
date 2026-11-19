@@ -1,6 +1,8 @@
 
 import { useState } from 'react'
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+
 function CreateCourseForm({ onCourseCreated, onCancel }) {
   const [course, setCourse] = useState({
     title: '',
@@ -119,7 +121,7 @@ function CreateCourseForm({ onCourseCreated, onCancel }) {
         }
       }
 
-      const response = await fetch('/api/courses/', {
+      const response = await fetch(`${API_BASE_URL}/api/courses/`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('access')}`,
@@ -159,7 +161,7 @@ function CreateCourseForm({ onCourseCreated, onCancel }) {
             lessonData.append('youtube_url', lesson.youtube_url.trim())
           }
 
-          const lessonResponse = await fetch('/api/lessons/', {
+          const lessonResponse = await fetch(`${API_BASE_URL}/api/lessons/`, {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${localStorage.getItem('access')}`,
