@@ -10,11 +10,19 @@ from .views import (
     AdminUserStatusView,
     AdminEnrollmentListView,
     AdminEnrollmentDeleteView,
+    PasswordResetRequestView,
+    PasswordResetConfirmView,
+    GoogleLoginView,
 )
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", EmailLoginView.as_view(), name="email_login"),
+    path("password-reset/request/", PasswordResetRequestView.as_view(),
+         name="password-reset-request"),
+    path("password-reset/confirm/", PasswordResetConfirmView.as_view(),
+         name="password-reset-confirm"),
+    path("google/", GoogleLoginView.as_view(), name="google-login"),
 
     # JWT
     path("refresh/", TokenRefreshView.as_view(), name="token_refresh"),
