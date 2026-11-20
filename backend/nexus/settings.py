@@ -29,12 +29,11 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 
 AUTH_USER_MODEL = "users.User"
 
+
 ALLOWED_HOSTS = [
-    host.strip()
-    for host in config(
-        'ALLOWED_HOSTS',
-        default='localhost,127.0.0.1'
-    ).split(',')
+    "localhost",
+    "127.0.0.1",
+    "rhyme-scratch-watch.ngrok-free.dev",
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -85,12 +84,6 @@ MIDDLEWARE = [
 ]
 
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
-
 ROOT_URLCONF = 'nexus.urls'
 
 TEMPLATES = [
@@ -114,16 +107,23 @@ WSGI_APPLICATION = 'nexus.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT', default='5432'),
+DATABASE_URL = config("DATABASE_URL", default="")
+if DATABASE_URL:
+    import dj_database_url
+    DATABASES = {"default": dj_database_url.parse(
+        DATABASE_URL, conn_max_age=600, ssl_require=not DEBUG
+    )}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": config("DB_NAME", default="path_nexus"),
+            "USER": config("DB_USER", default="postgres"),
+            "PASSWORD": config("DB_PASSWORD", default=""),
+            "HOST": config("DB_HOST", default="localhost"),
+            "PORT": config("DB_PORT", default="5432"),
+        }
     }
-}
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS':
@@ -135,6 +135,10 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_THROTTLE_RATES": {"anon": "10/hour"},
 }
 
 
@@ -211,11 +215,11 @@ STORAGES = {
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
 
-MPESA_CONSUMER_KEY = config("MPESA_CONSUMER_KEY")
-MPESA_CONSUMER_SECRET = config("MPESA_CONSUMER_SECRET")
-MPESA_SHORTCODE = config("MPESA_SHORTCODE")
-MPESA_PASSKEY = config("MPESA_PASSKEY")
-MPESA_CALLBACK_URL = config("MPESA_CALLBACK_URL")
+MPESA_CONSUMER_KEY = config("MPESA_CONSUMER_KEY", default="")
+MPESA_CONSUMER_SECRET = config("MPESA_CONSUMER_SECRET", default="")
+MPESA_SHORTCODE = config("MPESA_SHORTCODE", default="")
+MPESA_PASSKEY = config("MPESA_PASSKEY", default="")
+MPESA_CALLBACK_URL = config("MPESA_CALLBACK_URL", default="")
 
 EMAIL_BACKEND = config(
     'EMAIL_BACKEND',
@@ -238,3 +242,19 @@ CLOUDINARY_STORAGE = {
     'API_KEY': config('CLOUDINARY_API_KEY'),
     'API_SECRET': config('CLOUDINARY_API_SECRET'),
 }
+
+GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
+
+# # Deployment security and frontend origins
+# CORS_ALLOW_CREDENTIALS = True
+# SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# if not DEBUG:
+#     SESSION_COOKIE_SECURE = True
+#     CSRF_COOKIE_SECURE = True
+#     SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
+#     SECURE_HSTS_SECONDS = 31536000
+#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+#     SECURE_HSTS_PRELOAD = True
+
+# GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
+# DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER)
