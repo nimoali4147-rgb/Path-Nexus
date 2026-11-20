@@ -80,7 +80,7 @@ function Checkout() {
 
         if (data.status === "FAILED") {
           setError(
-            "Your M-Pesa payment was not completed. Please check your M-Pesa messages before trying again."
+           "Payment declined. Please try again."
           );
           setMessage("");
           return;
@@ -98,54 +98,59 @@ function Checkout() {
     }
   }
 
-  async function handlePayment(e) {
-    e.preventDefault();
-    setError("");
-    setMessage("");
 
-    if (!phoneNumber.trim()) {
-      setError("Please enter your M-Pesa phone number.");
-      return;
+async function handlePayment(e) {
+  e.preventDefault();
+  setError("");
+  setMessage("");
+
+  if (!phoneNumber.trim()) {
+    setError("Please enter your M-Pesa phone number.");
+    return;
+  }
+
+  try {
+    setPaying(true);
+
+    const response = await apiFetch(`${API_URL}/payments/create/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        course: Number(courseId),
+        phone_number: phoneNumber.trim(),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.detail ||
+        data.phone_number ||
+        "Could not start payment."
+      );
     }
 
-    try {
-      setPaying(true);
+    const paymentId = data.payment?.id;
 
-      const response = await apiFetch(`${API_URL}/payments/create/`, {
-        method: "POST",
-        body: JSON.stringify({
-          course: Number(courseId),
-          phone_number: phoneNumber.trim(),
-        }),
-      });
+    if (!paymentId) {
+      throw new Error(
+        "Payment request was accepted, but no payment ID was returned."
+      );
+    }
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail ||
-          data.phone_number ||
-          "Could not start payment."
-        );
-      }
-
-      const paymentId = data.payment?.id;
-
-      if (!paymentId) {
-        throw new Error(
-          "Payment request was accepted, but no payment ID was returned."
-        );
-      }
-
-      // Start checking the payment after the STK Push request is accepted.
     setPaying(false);
     await checkPaymentStatus(paymentId);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setPaying(false);
-    }
+
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setPaying(false);
   }
+}
 
   if (!isAuthenticated) {
     return (
