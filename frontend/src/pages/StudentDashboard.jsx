@@ -46,12 +46,12 @@ function StudentDashboard() {
   const [bio, setBio] = useState('')
   const [loading, setLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [error, setError] = useState('')
   const [profileError, setProfileError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const [preferences, setPreferences] = useState(() => {
     try {
@@ -216,30 +216,34 @@ function StudentDashboard() {
         })
   }
 
-  async function handleSaveProfile(event) {
-    event.preventDefault()
+async function handleSaveProfile(event) {
+  event.preventDefault()
 
-    setSavingProfile(true)
-    setProfileError('')
-    setSuccessMessage('')
+  setSavingProfile(true)
+  setProfileError('')
+  setSuccessMessage('')
 
-    try {
-      const updated = await apiRequest('/api/students/me/', {
-        method: 'PATCH',
-        body: JSON.stringify({ bio }),
-      })
+  try {
+    const updated = await apiRequest('/api/students/me/', {
+      method: 'PATCH',
+      body: JSON.stringify({ bio }),
+    })
 
-      setProfile(updated)
-      setBio(updated.bio || '')
-      setSuccessMessage('Your profile has been updated successfully.')
-    } catch (err) {
-      setProfileError(
-        err.message || 'Unable to save your profile.'
-      )
-    } finally {
-      setSavingProfile(false)
-    }
+    setProfile(updated)
+    setBio(updated.bio || '')
+
+    // Close the edit form after successful saving
+    setIsEditingProfile(false)
+
+    setSuccessMessage('Your profile has been updated successfully.')
+  } catch (err) {
+    setProfileError(
+      err.message || 'Unable to save your profile.'
+    )
+  } finally {
+    setSavingProfile(false)
   }
+}
 
   function updatePreference(key, checked) {
     const next = { ...preferences, [key]: checked }
@@ -536,19 +540,6 @@ function StudentDashboard() {
             <div className="flex flex-wrap items-center gap-3 sm:justify-end">
               <button
                 type="button"
-                onClick={() => fetchDashboardData(true)}
-                disabled={refreshing || loading}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-700 px-4 py-2.5 text-sm font-semibold text-stone-300 transition hover:border-amber-400/50 hover:text-amber-400 disabled:opacity-50"
-              >
-                <RefreshCw
-                  size={16}
-                  className={refreshing ? 'animate-spin' : ''}
-                />
-                Refresh
-              </button>
-
-              <button
-                type="button"
                 onClick={() => changeTab('profile')}
                 className="flex min-w-0 items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-left transition hover:border-amber-400/40"
               >
@@ -717,7 +708,45 @@ function StudentDashboard() {
                   </div>
                 )}
 
-                <form onSubmit={handleSaveProfile} className="space-y-5">
+              {!isEditingProfile ? (
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-stone-300">
+                    Username
+                  </label>
+                  <p className="rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-stone-400">
+                    {profile?.username || user?.username || ''}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-stone-300">
+                    Email address
+                  </label>
+                  <p className="rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-stone-400">
+                    {user?.email || ''}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-stone-300">
+                    Biography
+                  </label>
+                  <p className="min-h-24 whitespace-pre-wrap rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-stone-100">
+                    {bio || 'No biography added yet.'}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsEditingProfile(true)}
+                  className="rounded-xl bg-amber-400 px-5 py-3 font-bold text-neutral-950 hover:bg-amber-500"
+                >
+                  Edit Profile
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveProfile} className="space-y-5">
                   <div>
                     <label className="mb-2 block text-sm font-medium text-stone-300">
                       Username
@@ -769,7 +798,8 @@ function StudentDashboard() {
                     <Save size={17} />
                     {savingProfile ? 'Saving...' : 'Save Changes'}
                   </button>
-                </form>
+              </form>
+                )}
               </div>
 
               <aside className="h-fit rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
