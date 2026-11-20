@@ -477,17 +477,6 @@ function AdminDashboard() {
               </p>
             </div>
 
-            <button
-              onClick={loadDashboard}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-700 px-4 py-3 text-sm font-semibold transition hover:border-amber-400 hover:text-amber-400 disabled:opacity-50"
-            >
-              <RefreshCw
-                size={16}
-                className={loading ? 'animate-spin' : ''}
-              />
-              Refresh data
-            </button>
           </header>
 
           {error && (
