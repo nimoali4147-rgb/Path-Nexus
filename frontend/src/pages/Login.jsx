@@ -21,6 +21,7 @@ function Login() {
   const [newPassword, setNewPassword] = useState('')
   const [resetStage, setResetStage] = useState(0)
   const [resetMessage, setResetMessage] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
   useEffect(() => {
@@ -57,43 +58,89 @@ function Login() {
     return () => { if (script.parentNode) script.parentNode.removeChild(script) }
   }, [googleClientId, login, navigate])
 
-  async function requestResetCode(e) {
-    e.preventDefault(); setResetMessage(''); setError('')
-    try {
-      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-      const response = await fetch(`${apiBase}/api/auth/password-reset/request/`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ email: resetEmail }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.detail || 'Could not request a reset code.')
-      setResetStage(1); setResetMessage(data.detail || 'Check your Gmail for the reset code.')
-    } catch (err) { setResetMessage(err.message) }
-  }
+async function requestResetCode(e) {
+  e.preventDefault()
+  setResetMessage('')
+  setResetLoading(true)
 
-  async function confirmReset(e) {
-    e.preventDefault(); setResetMessage('')
-    try {
-      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-      const response = await fetch(`${apiBase}/api/auth/password-reset/confirm/`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ email: resetEmail, code: resetCode, new_password: newPassword }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.detail || data.new_password || 'Could not reset password.')
-      setResetMessage(data.detail); setResetStage(0); setResetOpen(false)
-    } catch (err) { setResetMessage(err.message) }
-  }
+  try {
+    const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
-  function handleChange(e) {
-    const { name, value } = e.target
-
-    setFormData({
-      ...formData,
-      [name]: value,
+    const response = await fetch(`${apiBase}/api/auth/password-reset/request/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ email: resetEmail }),
     })
-  }
 
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(data.detail || 'Could not request a reset code.')
+    }
+
+    setResetStage(1)
+    setResetMessage(data.detail || 'Reset code sent successfully. Check your Gmail.')
+  } catch (err) {
+    setResetMessage(err.message)
+  } finally {
+    setResetLoading(false)
+  }
+}
+  async function confirmReset(e) {
+  e.preventDefault()
+  setResetMessage('')
+  setResetLoading(true)
+
+  try {
+    const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+
+    const response = await fetch(`${apiBase}/api/auth/password-reset/confirm/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        email: resetEmail,
+        code: resetCode,
+        new_password: newPassword,
+      }),
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(
+        data.detail ||
+        data.new_password ||
+        'Could not reset password.'
+      )
+    }
+
+    setResetStage(2)
+    setResetMessage(
+      data.detail || 'Your password has been reset successfully.'
+    )
+    setResetCode('')
+    setNewPassword('')
+  } catch (err) {
+    setResetMessage(err.message)
+  } finally {
+    setResetLoading(false)
+  }
+}
+
+function handleChange(e) {
+  const { name, value } = e.target
+
+  setFormData(prev => ({
+    ...prev,
+    [name]: value,
+  }))
+}
   async function handleSubmit(e) {
     e.preventDefault()
 
@@ -267,25 +314,106 @@ function Login() {
             </div>
           )}
 
-          {resetOpen && (
-            <div className="mt-6 rounded-xl border border-amber-500/30 bg-neutral-950 p-4">
-              <h2 className="font-semibold text-stone-100 mb-3">Reset your password</h2>
-              {resetStage === 0 ? (
-                <form onSubmit={requestResetCode} className="space-y-3">
-                  <input type="email" required value={resetEmail} onChange={e => setResetEmail(e.target.value)} placeholder="Your Gmail address" className="w-full rounded-lg bg-neutral-900 border border-neutral-700 p-3 text-white" />
-                  <button disabled={loading} className="w-full rounded-lg bg-amber-400 text-black font-semibold p-3">Send reset code</button>
-                </form>
-              ) : (
-                <form onSubmit={confirmReset} className="space-y-3">
-                  <input required inputMode="numeric" maxLength={6} value={resetCode} onChange={e => setResetCode(e.target.value)} placeholder="6-digit code from Gmail" className="w-full rounded-lg bg-neutral-900 border border-neutral-700 p-3 text-white" />
-                  <input required minLength={8} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password (8+ characters)" className="w-full rounded-lg bg-neutral-900 border border-neutral-700 p-3 text-white" />
-                  <button disabled={loading} className="w-full rounded-lg bg-amber-400 text-black font-semibold p-3">Update password</button>
-                </form>
-              )}
-              {resetMessage && <p className="mt-3 text-sm text-amber-300">{resetMessage}</p>}
-              <button type="button" onClick={() => setResetOpen(false)} className="mt-3 text-xs text-stone-400">Close</button>
-            </div>
-          )}
+        
+{resetOpen && (
+  <div className="mt-6 rounded-xl border border-amber-500/30 bg-neutral-950 p-4">
+    <h2 className="font-semibold text-stone-100 mb-3">
+      {resetStage === 2 ? 'Password Reset Complete' : 'Reset your password'}
+    </h2>
+
+    {resetStage === 0 && (
+      <form onSubmit={requestResetCode} className="space-y-3">
+        <input
+          type="email"
+          required
+          value={resetEmail}
+          onChange={e => setResetEmail(e.target.value)}
+          placeholder="Your Gmail address"
+          className="w-full rounded-lg bg-neutral-900 border border-neutral-700 p-3 text-white"
+        />
+
+        <button
+          type="submit"
+          disabled={resetLoading}
+          className="w-full rounded-lg bg-amber-400 text-black font-semibold p-3 disabled:opacity-50"
+        >
+          {resetLoading ? 'Sending code...' : 'Send reset code'}
+        </button>
+      </form>
+    )}
+
+    {resetStage === 1 && (
+      <form onSubmit={confirmReset} className="space-y-3">
+        <input
+          required
+          inputMode="numeric"
+          pattern="[0-9]{6}"
+          maxLength={6}
+          value={resetCode}
+          onChange={e => setResetCode(e.target.value)}
+          placeholder="6-digit code from Gmail"
+          className="w-full rounded-lg bg-neutral-900 border border-neutral-700 p-3 text-white"
+        />
+
+        <input
+          required
+          minLength={8}
+          type="password"
+          value={newPassword}
+          onChange={e => setNewPassword(e.target.value)}
+          placeholder="New password (8+ characters)"
+          className="w-full rounded-lg bg-neutral-900 border border-neutral-700 p-3 text-white"
+        />
+
+        <button
+          type="submit"
+          disabled={resetLoading}
+          className="w-full rounded-lg bg-amber-400 text-black font-semibold p-3 disabled:opacity-50"
+        >
+          {resetLoading ? 'Updating password...' : 'Update password'}
+        </button>
+      </form>
+    )}
+
+    {resetStage === 2 && (
+      <div className="text-center py-3">
+        <div className="text-4xl text-green-400 mb-3">✓</div>
+        <p className="text-green-400 font-semibold">
+          Password Reset Successful!
+        </p>
+        <p className="text-stone-400 text-sm mt-2">
+          Your password has been changed. You can now sign in with your new password.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setResetOpen(false)
+            setResetStage(0)
+            setResetMessage('')
+          }}
+          className="w-full mt-4 rounded-lg bg-amber-400 text-black font-semibold p-3"
+        >
+          Back to Sign In
+        </button>
+      </div>
+    )}
+
+    {resetMessage && resetStage !== 2 && (
+      <p className="mt-3 text-sm text-amber-300">{resetMessage}</p>
+    )}
+
+    {resetStage !== 2 && (
+      <button
+        type="button"
+        onClick={() => setResetOpen(false)}
+        className="mt-3 text-xs text-stone-400"
+      >
+        Close
+      </button>
+    )}
+  </div>
+)}
+
 
           {/* Register Link */}
           <p className="text-center text-stone-400 mt-7 text-sm">
