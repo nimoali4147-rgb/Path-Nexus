@@ -4,16 +4,15 @@ from decimal import Decimal, InvalidOperation
 from rest_framework.generics import DestroyAPIView
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-
 from rest_framework import status
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from courses.models import Course, Enrollment
 from users.permissions import IsPlatformAdmin
-
+from datetime import timedelta
+from django.utils import timezone
 from .models import Payment
 from .serializers import PaymentSerializer
 from .utils import send_stk_push
@@ -66,6 +65,26 @@ class PaymentCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Prevent duplicate pending STK requests.
+        recent_pending = Payment.objects.filter(
+            student=request.user,
+            course=course,
+            status=Payment.Status.PENDING,
+            created_at__gte=timezone.now() - timedelta(minutes=2),
+        ).exists()
+
+        if recent_pending:
+            return Response(
+                {
+                    "detail": (
+                        "A payment request is already pending. "
+                        "Please wait before trying again."
+                    )
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Create payment record before sending STK Push.
         payment = Payment.objects.create(
             student=request.user,
             course=course,
@@ -79,7 +98,7 @@ class PaymentCreateView(APIView):
                 phone_number=phone_number,
                 amount=payment.amount,
                 account_reference=f"COURSE-{course.id}",
-                transaction_desc=f"Payment for {course.title}",
+                transaction_desc="Course payment",
             )
 
         except Exception:
