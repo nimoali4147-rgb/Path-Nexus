@@ -404,17 +404,7 @@ async function handleRepublishCourse(course) {
               Welcome to your PATH NEXUS teaching workspace.
             </p>
           </div>
-
-          <button
-            onClick={() => {
-              fetchCourses()
-              if (activeTab === 'students') fetchStudents()
-            }}
-            className="flex items-center justify-center gap-2 rounded-xl border border-neutral-700 px-5 py-3 text-sm transition hover:border-amber-400 hover:text-amber-400"
-          >
-            <RefreshCw size={17} />
-            Refresh Data
-          </button>
+          
         </div>
 
         {error && (
