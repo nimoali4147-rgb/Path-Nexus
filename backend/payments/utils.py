@@ -95,11 +95,65 @@ def send_stk_push(
         url,
         json=payload,
         headers=headers,
-        timeout=30
+        timeout=30,
     )
 
     print("MPESA STATUS:", response.status_code)
     print("MPESA RESPONSE:", response.text)
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        response_data = {"raw_response": response.text}
+
+    if not response.ok:
+        raise Exception(
+            f"Safaricom HTTP {response.status_code}: {response_data}"
+        )
+
+    return response_data
+
+
+def query_stk_status(checkout_request_id):
+    access_token = get_mpesa_access_token()
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+
+    shortcode = str(settings.MPESA_SHORTCODE)
+    passkey = settings.MPESA_PASSKEY
+
+    password = generate_mpesa_password(
+        shortcode,
+        passkey,
+        timestamp,
+    )
+
+    url = (
+        "https://sandbox.safaricom.co.ke/"
+        "mpesa/stkpushquery/v1/query"
+    )
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "BusinessShortCode": shortcode,
+        "Password": password,
+        "Timestamp": timestamp,
+        "CheckoutRequestID": checkout_request_id,
+    }
+
+    response = requests.post(
+        url,
+        json=payload,
+        headers=headers,
+        timeout=30,
+    )
+
+    print("STK QUERY STATUS:", response.status_code)
+    print("STK QUERY RESPONSE:", response.text)
 
     response.raise_for_status()
     return response.json()
