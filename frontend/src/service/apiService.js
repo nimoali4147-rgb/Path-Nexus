@@ -97,7 +97,7 @@ export async function apiJson(path, options = {}) {
     const headers = new Headers(suppliedHeaders)
 
     headers.set('Accept', 'application/json')
-    headers.set('ngrok-skip-browser-warning', 'true')
+
 
     if (token) {
       headers.set('Authorization', `Bearer ${token}`)
