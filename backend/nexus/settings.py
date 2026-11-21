@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+from corsheaders.defaults import default_headers
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -31,9 +32,12 @@ AUTH_USER_MODEL = "users.User"
 
 
 ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "rhyme-scratch-watch.ngrok-free.dev",
+    host.strip()
+    for host in config(
+        "ALLOWED_HOSTS",
+        default="localhost,127.0.0.1,rhyme-scratch-watch.ngrok-free.dev",
+    ).split(",")
+    if host.strip()
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -44,6 +48,10 @@ CORS_ALLOWED_ORIGINS = [
     ).split(',')
 ]
 
+CORS_ALLOW_HEADERS = [
+    *default_headers,
+    "ngrok-skip-browser-warning",
+]
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in config('CSRF_TRUSTED_ORIGINS', default='').split(',')
@@ -70,19 +78,17 @@ INSTALLED_APPS = [
     'cloudinary',
 ]
 
-
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
 
 ROOT_URLCONF = 'nexus.urls'
 
@@ -246,15 +252,13 @@ CLOUDINARY_STORAGE = {
 GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
 
 # # Deployment security and frontend origins
-# CORS_ALLOW_CREDENTIALS = True
-# SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-# if not DEBUG:
-#     SESSION_COOKIE_SECURE = True
-#     CSRF_COOKIE_SECURE = True
-#     SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
-#     SECURE_HSTS_SECONDS = 31536000
-#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-#     SECURE_HSTS_PRELOAD = True
-
-# GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
-# DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER)
+CORS_ALLOW_CREDENTIALS = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = config(
+        "SECURE_SSL_REDIRECT", default=True, cast=bool)
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
