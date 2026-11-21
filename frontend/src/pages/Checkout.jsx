@@ -3,13 +3,12 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Smartphone, ShieldCheck, ArrowLeft } from "lucide-react";
-
-const API_URL = "http://127.0.0.1:8000/api";
+import { apiJson } from "../service/apiService";
 
 function Checkout() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated, apiFetch } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const [course, setCourse] = useState(null);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -22,12 +21,7 @@ function Checkout() {
   useEffect(() => {
     async function fetchCourse() {
       try {
-        const response = await fetch(`${API_URL}/courses/${courseId}/`);
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error("Could not load course.");
-        }
+        const data = await apiJson(`/api/courses/${courseId}/`);
 
         if (data.is_free) {
           navigate(`/courses/${courseId}`, { replace: true });
@@ -56,15 +50,7 @@ function Checkout() {
       for (let attempt = 0; attempt < 40; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
-        const response = await apiFetch(
-          `${API_URL}/payments/${paymentId}/status/`
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.detail || "Could not check payment status.");
-        }
+        const data = await apiJson(`/api/payments/${paymentId}/status/`);
 
         if (data.status === "SUCCESS") {
           setMessage(
@@ -112,27 +98,13 @@ async function handlePayment(e) {
   try {
     setPaying(true);
 
-    const response = await apiFetch(`${API_URL}/payments/create/`, {
+    const data = await apiJson("/api/payments/create/", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify({
+      body: {
         course: Number(courseId),
         phone_number: phoneNumber.trim(),
-      }),
+      },
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(
-        data.detail ||
-        data.phone_number ||
-        "Could not start payment."
-      );
-    }
 
     const paymentId = data.payment?.id;
 

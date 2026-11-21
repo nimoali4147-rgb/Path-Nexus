@@ -49,8 +49,6 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/become-teacher" element={<BecomeTeacher />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-
         <Route
           path="/admin"
           element={
@@ -81,15 +79,16 @@ function App() {
         <Route path="/courses/:courseId" element={<CourseDetails />} />
         <Route path="/learning/:enrollmentId" element={<LearningSession />} />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
         <Route
-        path="/checkout/:courseId"
-        element={
-          <ProtectedRoute allowedRole="student">
-            <Checkout />
-          </ProtectedRoute>
-        }
-      />
+          path="/checkout/:courseId"
+          element={
+            <ProtectedRoute allowedRole="student">
+              <Checkout />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   )

@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import { apiJson } from '../service/apiService'
 import {
   X,
   Save,
@@ -10,9 +11,6 @@ import {
   Video,
   Loader,
 } from 'lucide-react'
-
-const API_URL =
-  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
 
 function TeacherCourseModals({
   selectedCourse,
@@ -44,46 +42,37 @@ function TeacherCourseModals({
 
   const [lessonForm, setLessonForm] = useState(emptyLesson)
 
-  const getToken = () => localStorage.getItem('access')
-
   // LOAD COURSE LESSONS
-  async function loadLessons(courseId) {
-    try {
-      setLoadingLessons(true)
-      setLessonError('')
 
-      const response = await fetch(`${API_URL}/lessons/`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      })
+// LOAD COURSE LESSONS
+async function loadLessons(courseId) {
+  try {
+    setLoadingLessons(true)
+    setLessonError('')
 
-      const data = await response.json()
+    const data = await apiJson('/api/lessons/')
 
-      if (!response.ok) {
-        throw new Error(
-          data.detail || 'Could not load course lessons.'
-        )
-      }
+    const allLessons = Array.isArray(data)
+      ? data
+      : data.results || []
 
-      const allLessons = Array.isArray(data)
-        ? data
-        : data.results || []
+    const courseLessons = allLessons.filter((lesson) => {
+      const lessonCourseId =
+        typeof lesson.course === 'object'
+          ? lesson.course?.id
+          : lesson.course
 
-      const courseLessons = allLessons
-        .filter(
-          (lesson) =>
-            Number(lesson.course) === Number(courseId)
-        )
-        .sort((a, b) => a.order - b.order)
+      return Number(lessonCourseId) === Number(courseId)
+    }).sort((first, second) => Number(first.order) - Number(second.order))
 
-      setLessons(courseLessons)
-    } catch (error) {
-      setLessonError(error.message)
-    } finally {
-      setLoadingLessons(false)
-    }
+    setLessons(courseLessons)
+  } catch (error) {
+    console.error('Load lessons error:', error)
+    setLessonError(error.message || 'Could not load course lessons.')
+  } finally {
+    setLoadingLessons(false)
   }
+}
 
   // OPEN LESSON MANAGEMENT
   function openLessonManagement(course) {
@@ -120,12 +109,6 @@ function TeacherCourseModals({
       return
     }
 
-    const token = getToken()
-    if (!token) {
-      setLessonError('Your session has expired. Please sign in again.')
-      return
-    }
-
     try {
       setSavingLesson(true)
       setLessonError('')
@@ -138,39 +121,23 @@ function TeacherCourseModals({
 
       if (youtubeUrl) {
         formData.append('youtube_url', youtubeUrl)
+        if (editingLesson?.video_file) {
+          formData.append('clear_video_file', 'true')
+        }
       } else if (lessonForm.video_file) {
         formData.append('video_file', lessonForm.video_file)
-        // Clear a previous YouTube URL when replacing it with an uploaded video.
         formData.append('youtube_url', '')
       }
-      // When editing an existing uploaded video without replacing it,
-      // omit video_file and youtube_url so Django keeps the existing file.
 
-      const url = editingLesson
-        ? `${API_URL}/lessons/${editingLesson.id}/`
-        : `${API_URL}/lessons/`
-
-      const response = await fetch(url, {
-        method: editingLesson ? 'PATCH' : 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      })
-
-      const data = response.status === 204
-        ? null
-        : await response.json().catch(() => ({}))
-
-      if (!response.ok) {
-        const detail = data?.detail || Object.entries(data || {})
-          .map(([key, value]) =>
-            `${key}: ${Array.isArray(value) ? value.join(', ') : String(value)}`
-          )
-          .join(' | ')
-
-        throw new Error(detail || `Could not ${editingLesson ? 'update' : 'save'} lesson.`)
-      }
+      await apiJson(
+        editingLesson
+          ? `/api/lessons/${editingLesson.id}/`
+          : '/api/lessons/',
+        {
+          method: editingLesson ? 'PATCH' : 'POST',
+          body: formData,
+        }
+      )
 
       // Refresh from the database so the curriculum shows persisted lessons.
       await loadLessons(managingCourse.id)
@@ -231,13 +198,6 @@ function TeacherCourseModals({
   async function handleSavePendingLessons() {
     if (!managingCourse || pendingLessons.length === 0 || savingAllLessons) return
 
-    const token = getToken()
-
-    if (!token) {
-      setLessonError('Your session has expired. Please sign in again.')
-      return
-    }
-
     let savedCount = 0
     const lessonsToSave = [...pendingLessons]
 
@@ -258,25 +218,10 @@ function TeacherCourseModals({
           formData.append('video_file', lesson.video_file)
         }
 
-        const response = await fetch(`${API_URL}/lessons/`, {
+        await apiJson('/api/lessons/', {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
           body: formData,
         })
-
-        const data = await response.json().catch(() => ({}))
-
-        if (!response.ok) {
-          const detail = data?.detail || Object.entries(data || {})
-            .map(([key, value]) =>
-              `${key}: ${Array.isArray(value) ? value.join(', ') : String(value)}`
-            )
-            .join(' | ')
-
-          throw new Error(detail || `Could not save "${lesson.title}".`)
-        }
 
         savedCount += 1
       }
@@ -325,23 +270,9 @@ function TeacherCourseModals({
     try {
       setLessonError('')
 
-      const response = await fetch(
-        `${API_URL}/lessons/${lesson.id}/`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-          },
-        }
-      )
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-
-        throw new Error(
-          data.detail || 'Could not delete this lesson.'
-        )
-      }
+      await apiJson(`/api/lessons/${lesson.id}/`, {
+        method: 'DELETE',
+      })
 
       if (editingLesson?.id === lesson.id) {
         setEditingLesson(null)

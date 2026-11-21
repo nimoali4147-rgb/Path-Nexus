@@ -11,8 +11,9 @@ import {
   Loader,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { apiJson } from "../service/apiService";
 
-const API_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 function getVideoUrl(url) {
   if (!url || typeof url !== "string") return "";
@@ -55,7 +56,7 @@ function getVideoUrl(url) {
   }
 
   if (value.startsWith("/")) {
-    return `http://127.0.0.1:8000${value}`;
+    return `${API_BASE_URL}${value}`;
   }
 
   return value;
@@ -91,20 +92,7 @@ function LearningSession() {
           return;
         }
 
-        const enrollmentResponse = await fetch(
-          `${API_URL}/enrollments/`,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-
-        if (!enrollmentResponse.ok) {
-          throw new Error("Could not load your enrollment.");
-        }
-
-        const enrollmentData = await enrollmentResponse.json();
+        const enrollmentData = await apiJson("/api/enrollments/");
 
         const enrollmentList = Array.isArray(enrollmentData)
           ? enrollmentData
@@ -125,20 +113,7 @@ function LearningSession() {
             ? currentEnrollment.course.id
             : currentEnrollment.course;
 
-        const lessonsResponse = await fetch(
-          `${API_URL}/lessons/`,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-
-        if (!lessonsResponse.ok) {
-          throw new Error("Could not load course lessons.");
-        }
-
-        const lessonsData = await lessonsResponse.json();
+        const lessonsData = await apiJson("/api/lessons/");
 
         const allLessons = Array.isArray(lessonsData)
           ? lessonsData
@@ -174,12 +149,8 @@ function LearningSession() {
     setSelectedLesson(lesson);
 
     try {
-      await fetch(`${API_URL}/lessons/${lesson.id}/start/`, {
+      await apiJson(`/api/lessons/${lesson.id}/start/`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
       });
     } catch (err) {
       console.error("Could not update lesson access:", err);
@@ -193,26 +164,10 @@ function LearningSession() {
       setCompleting(true);
       setError("");
 
-      const response = await fetch(
-        `${API_URL}/lessons/${selectedLesson.id}/complete/`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }
+      const data = await apiJson(
+        `/api/lessons/${selectedLesson.id}/complete/`,
+        { method: "POST" }
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail ||
-          data.message ||
-          "Could not complete this lesson."
-        );
-      }
 
       setEnrollment((previous) => ({
         ...previous,

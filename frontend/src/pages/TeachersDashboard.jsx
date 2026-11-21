@@ -1,12 +1,13 @@
 
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CreateCourseForm from '../components/CreateCourseForm'
 import TeacherCourseModals from './TeacherCourseModals'
+import { apiJson } from '../service/apiService'
 
 import {LayoutDashboard, BookOpen, Users,  GraduationCap,
   BookCheck, Clock3, Plus, Send, Sparkles, X,
-  LogOut, Menu, RefreshCw, Eye, Pencil,Trash2,
+  LogOut, Menu, Eye, Pencil,Trash2,
 } from 'lucide-react'
 
 function TeachersDashboard() {
@@ -28,42 +29,11 @@ function TeachersDashboard() {
   const [editingCourse, setEditingCourse] = useState(null)
   const [savingCourse, setSavingCourse] = useState(false)
 
-  // Read the latest access token for every request.
-  // This avoids keeping an expired token captured by the component.
-  async function apiRequest(url, options = {}) {
-    const token = localStorage.getItem('access')
-
-    if (!token) {
-      throw new Error('Your session has expired. Please sign in again.')
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(options.body instanceof FormData
-          ? {}
-          : { 'Content-Type': 'application/json' }),
-        ...options.headers,
-      },
-    })
-
-    const data = await response.json().catch(() => ({}))
-
-    if (!response.ok) {
-      const firstFieldError = Object.values(data).flat().find(
-        (value) => typeof value === 'string'
-      )
-      throw new Error(
-        data.detail ||
-        data.message ||
-        firstFieldError ||
-        'Something went wrong. Please try again.'
-      )
-    }
-
-    return data
-  }
+  // Use the shared API service so token refresh and JSON errors
+  // behave the same across the application.
+  const apiRequest = useCallback((path, options = {}) => {
+    return apiJson(path, options)
+  }, [])
 
 
 async function handleUnpublishCourse(course) {
@@ -93,7 +63,7 @@ async function handleRepublishCourse(course) {
 }
 
   // Load teacher courses.
-  async function fetchCourses() {
+  const fetchCourses = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -105,10 +75,10 @@ async function handleRepublishCourse(course) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [apiRequest])
 
   // Load students enrolled in teacher courses.
-  async function fetchStudents() {
+  const fetchStudents = useCallback(async () => {
     try {
       setStudentsLoading(true)
 
@@ -119,17 +89,25 @@ async function handleRepublishCourse(course) {
     } finally {
       setStudentsLoading(false)
     }
-  }
+  }, [apiRequest])
 
   useEffect(() => {
-    fetchCourses()
-  }, [])
+    const timer = window.setTimeout(() => {
+      fetchCourses()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [fetchCourses])
 
   useEffect(() => {
-    if (activeTab === 'students') {
+    if (activeTab !== 'students') return undefined
+
+    const timer = window.setTimeout(() => {
       fetchStudents()
-    }
-  }, [activeTab])
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [activeTab, fetchStudents])
 
   function changeTab(tab) {
     setActiveTab(tab)
@@ -150,7 +128,7 @@ async function handleRepublishCourse(course) {
     window.location.reload()
   }
 
-  async function handleCourseCreated(newCourse) {
+  async function handleCourseCreated() {
     setShowForm(false)
     setActiveTab('courses')
     setSuccess('Course created successfully. Refreshing your courses...')
@@ -221,6 +199,10 @@ async function handleRepublishCourse(course) {
       }
       courseData.append('learning_objectives', editingCourse.learning_objectives)
       courseData.append('youtube_url', editingCourse.youtube_url || '')
+
+      if (editingCourse.youtube_url && editingCourse.currentVideo) {
+        courseData.append('clear_video_file', 'true')
+      }
 
       if (editingCourse.thumbnail) {
         courseData.append('thumbnail', editingCourse.thumbnail)

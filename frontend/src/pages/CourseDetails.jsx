@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { apiJson } from '../service/apiService'
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,7 +13,6 @@ import {
   BarChart3,
 } from 'lucide-react'
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
 function CourseDetails() {
   const { courseId } = useParams()
@@ -29,13 +29,7 @@ function CourseDetails() {
   useEffect(() => {
     async function loadCourse() {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/courses/${courseId}/`)
-        const data = await response.json()
-
-        if (!response.ok) {
-          throw new Error('Course could not be found.')
-        }
-
+        const data = await apiJson(`/api/courses/${courseId}/`)
         setCourse(data)
       } catch (err) {
         setError(err.message)
@@ -55,15 +49,7 @@ function CourseDetails() {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/enrollments/`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('access')}`,
-          },
-        })
-
-        if (!response.ok) return
-
-        const data = await response.json()
+        const data = await apiJson('/api/enrollments/')
         const enrollments = Array.isArray(data)
           ? data
           : data.results || []
@@ -99,7 +85,7 @@ function CourseDetails() {
     }
 
     if (!course.is_free) {
-      setError('This is a paid course. Payment is not available yet.')
+      navigate(`/checkout/${course.id}`)
       return
     }
 
@@ -107,24 +93,10 @@ function CourseDetails() {
     setError('')
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/enrollments/`, {
+      const data = await apiJson('/api/enrollments/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('access')}`,
-        },
-        body: JSON.stringify({
-          course: course.id,
-        }),
+        body: { course: course.id },
       })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail || data.course?.[0] || 'Enrollment failed.'
-        )
-      }
 
       setEnrollment(data)
       navigate(`/learning/${data.id}`)

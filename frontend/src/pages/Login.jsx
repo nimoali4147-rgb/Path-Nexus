@@ -1,7 +1,8 @@
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { apiJson } from '../service/apiService'
 import { Mail, Lock, ArrowRight, GraduationCap } from 'lucide-react'
 
 function Login() {
@@ -23,39 +24,85 @@ function Login() {
   const [resetMessage, setResetMessage] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+  const googleInitialized = useRef(false)
 
   useEffect(() => {
-    if (!googleClientId) return
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    script.onload = () => {
-      if (!window.google?.accounts?.id) return
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: async ({ credential }) => {
-          setError('')
-          setLoading(true)
-          try {
-            const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-            const response = await fetch(`${apiBase}/api/auth/google/`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-              body: JSON.stringify({ credential }),
-            })
-            const data = await response.json().catch(() => ({}))
-            if (!response.ok) throw new Error(data.detail || 'Google sign-in failed.')
-            login(data.user, data.access, data.refresh)
-            navigate(data.user.role === 'admin' ? '/admin' : data.user.role === 'teacher' ? '/teacher' : '/student')
-          } catch (err) { setError(err.message) } finally { setLoading(false) }
-        },
-      })
+    if (!googleClientId) return undefined
+
+    let cancelled = false
+
+    function initializeGoogle() {
+      if (cancelled || !window.google?.accounts?.id) return
+
       const button = document.getElementById('google-signin-button')
-      if (button) window.google.accounts.id.renderButton(button, { theme: 'outline', size: 'large', width: 320, text: 'signin_with' })
+
+      if (!googleInitialized.current) {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: async ({ credential }) => {
+            setError('')
+            setLoading(true)
+
+            try {
+              const data = await apiJson('/api/auth/google/', {
+                method: 'POST',
+                auth: false,
+                body: { credential },
+              })
+
+              login(data.user, data.access, data.refresh)
+
+              if (data.user.role === 'admin') {
+                navigate('/admin')
+              } else if (data.user.role === 'teacher') {
+                navigate('/teacher')
+              } else {
+                navigate('/student')
+              }
+            } catch (err) {
+              setError(err.message || 'Google sign-in failed.')
+            } finally {
+              setLoading(false)
+            }
+          },
+        })
+
+        googleInitialized.current = true
+      }
+
+      if (button && button.dataset.googleRendered !== 'true') {
+        button.innerHTML = ''
+        window.google.accounts.id.renderButton(button, {
+          theme: 'outline',
+          size: 'large',
+          width: 350,
+          text: 'continue_with',
+          shape: 'rect',
+        })
+        button.dataset.googleRendered = 'true'
+      }
     }
-    document.head.appendChild(script)
-    return () => { if (script.parentNode) script.parentNode.removeChild(script) }
+
+    if (window.google?.accounts?.id) {
+      initializeGoogle()
+    } else {
+      let script = document.querySelector('script[data-google-identity]')
+
+      if (!script) {
+        script = document.createElement('script')
+        script.src = 'https://accounts.google.com/gsi/client'
+        script.async = true
+        script.defer = true
+        script.dataset.googleIdentity = 'true'
+        document.head.appendChild(script)
+      }
+
+      script.addEventListener('load', initializeGoogle)
+    }
+
+    return () => {
+      cancelled = true
+    }
   }, [googleClientId, login, navigate])
 
 async function requestResetCode(e) {
@@ -64,22 +111,11 @@ async function requestResetCode(e) {
   setResetLoading(true)
 
   try {
-    const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-
-    const response = await fetch(`${apiBase}/api/auth/password-reset/request/`, {
+    const data = await apiJson('/api/auth/password-reset/request/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ email: resetEmail }),
+      auth: false,
+      body: { email: resetEmail },
     })
-
-    const data = await response.json().catch(() => ({}))
-
-    if (!response.ok) {
-      throw new Error(data.detail || 'Could not request a reset code.')
-    }
 
     setResetStage(1)
     setResetMessage(data.detail || 'Reset code sent successfully. Check your Gmail.')
@@ -95,30 +131,15 @@ async function requestResetCode(e) {
   setResetLoading(true)
 
   try {
-    const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-
-    const response = await fetch(`${apiBase}/api/auth/password-reset/confirm/`, {
+    const data = await apiJson('/api/auth/password-reset/confirm/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
+      auth: false,
+      body: {
         email: resetEmail,
         code: resetCode,
         new_password: newPassword,
-      }),
+      },
     })
-
-    const data = await response.json().catch(() => ({}))
-
-    if (!response.ok) {
-      throw new Error(
-        data.detail ||
-        data.new_password ||
-        'Could not reset password.'
-      )
-    }
 
     setResetStage(2)
     setResetMessage(
@@ -148,25 +169,12 @@ function handleChange(e) {
     setLoading(true)
 
     try {
-      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-      const response = await fetch(`${apiBase}/api/auth/login/`, {
+      const data = await apiJson('/api/auth/login/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        auth: false,
+        body: formData,
       })
 
-      const contentType = response.headers.get('content-type') || ''
-      const raw = await response.text()
-      let data = {}
-      if (contentType.includes('application/json') && raw) {
-        try { data = JSON.parse(raw) } catch { data = {} }
-      }
-      if (!response.ok) {
-        const message = data.detail || Object.values(data).flat().join(' ')
-        throw new Error(message || `Sign in failed (HTTP ${response.status}). The API did not return a JSON error.`)
-      }
       if (!data.access || !data.refresh || !data.user) {
         throw new Error('The server response is missing authentication data. Check the backend login endpoint.')
       }

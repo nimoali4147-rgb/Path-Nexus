@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { apiJson } from '../service/apiService'
 import {
   LayoutDashboard,
   BookOpen,
@@ -37,7 +38,7 @@ const navigationItems = [
 
 function StudentDashboard() {
   const navigate = useNavigate()
-  const { user, accessToken, refreshAccessToken, logout } = useAuth()
+  const { user, accessToken, logout } = useAuth()
 
   const [activeTab, setActiveTab] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -45,6 +46,7 @@ function StudentDashboard() {
   const [profile, setProfile] = useState(null)
   const [bio, setBio] = useState('')
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [profileLoading, setProfileLoading] = useState(true)
   const [savingProfile, setSavingProfile] = useState(false)
   const [error, setError] = useState('')
@@ -83,43 +85,9 @@ function StudentDashboard() {
     .slice(0, 2)
     .toUpperCase()
 
-  const apiRequest = useCallback(async (url, options = {}) => {
-    let token = accessToken
-
-    const send = (currentToken) =>
-      fetch(url, {
-        ...options,
-        headers: {
-          ...(options.body instanceof FormData
-            ? {}
-            : { 'Content-Type': 'application/json' }),
-          ...options.headers,
-          Authorization: `Bearer ${currentToken}`,
-        },
-      })
-
-    let response = await send(token)
-
-    if (response.status === 401 && refreshAccessToken) {
-      token = await refreshAccessToken()
-      if (token) response = await send(token)
-    }
-
-    const data = await response.json().catch(() => ({}))
-
-    if (!response.ok) {
-      const detail =
-        data.detail ||
-        data.message ||
-        Object.values(data).flat().join(' ')
-
-      throw new Error(
-        detail || 'Something went wrong. Please try again.'
-      )
-    }
-
-    return data
-  }, [accessToken, refreshAccessToken])
+  const apiRequest = useCallback((url, options = {}) => {
+    return apiJson(url, options)
+  }, [])
 
   const fetchDashboardData = useCallback(async (showRefresh = false) => {
     if (!accessToken) {
@@ -174,7 +142,11 @@ function StudentDashboard() {
   }, [accessToken, apiRequest])
 
   useEffect(() => {
-    fetchDashboardData()
+    const timer = window.setTimeout(() => {
+      fetchDashboardData()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [fetchDashboardData])
 
   const filteredEnrollments = useMemo(() => {
@@ -274,10 +246,11 @@ async function handleSaveProfile(event) {
           <p>{error}</p>
           <button
             onClick={() => fetchDashboardData(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-red-400/30 px-4 py-2 text-sm font-semibold hover:bg-red-500/10"
+            disabled={refreshing}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-red-400/30 px-4 py-2 text-sm font-semibold hover:bg-red-500/10 disabled:opacity-60"
           >
-            <RefreshCw size={15} />
-            Try again
+            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Refreshing...' : 'Try again'}
           </button>
         </div>
       )

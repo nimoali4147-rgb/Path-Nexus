@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { apiJson } from "../service/apiService";
 import {
   Search,
   BookOpen,
@@ -13,23 +14,6 @@ import {
   ArrowRight,
   PlayCircle,
 } from "lucide-react";
-
-const API_URL = "http://127.0.0.1:8000/api";
-
-async function getResponseData(response) {
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.detail ||
-      data.message ||
-      data.error ||
-      "Something went wrong."
-    );
-  }
-
-  return data;
-}
 
 function Courses() {
   const navigate = useNavigate();
@@ -48,8 +32,7 @@ function Courses() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(`${API_URL}/courses/`);
-        const data = await getResponseData(response);
+        const data = await apiJson("/api/courses/");
 
         setCourses(
           Array.isArray(data) ? data : data.results || []
@@ -72,13 +55,7 @@ function Courses() {
       }
 
       try {
-        const response = await fetch(`${API_URL}/enrollments/`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        const data = await getResponseData(response);
+        const data = await apiJson("/api/enrollments/");
 
         setEnrollments(
           Array.isArray(data) ? data : data.results || []
@@ -131,18 +108,10 @@ function Courses() {
       setBusyId(course.id);
       setError("");
 
-      const response = await fetch(`${API_URL}/enrollments/`, {
+      const enrollment = await apiJson("/api/enrollments/", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          course: course.id,
-        }),
+        body: { course: course.id },
       });
-
-      const enrollment = await getResponseData(response);
 
       setEnrollments((previous) => [
         ...previous,
@@ -154,13 +123,7 @@ function Courses() {
       setError(err.message);
 
       try {
-        const response = await fetch(`${API_URL}/enrollments/`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        const data = await getResponseData(response);
+        const data = await apiJson("/api/enrollments/");
 
         const list = Array.isArray(data)
           ? data

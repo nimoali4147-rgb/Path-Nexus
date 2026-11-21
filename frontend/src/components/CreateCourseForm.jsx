@@ -1,7 +1,6 @@
 
 import { useState } from 'react'
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+import { apiJson } from '../service/apiService'
 
 function CreateCourseForm({ onCourseCreated, onCancel }) {
   const [course, setCourse] = useState({
@@ -121,27 +120,10 @@ function CreateCourseForm({ onCourseCreated, onCancel }) {
         }
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/courses/`, {
+      const data = await apiJson('/api/courses/', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access')}`,
-        },
         body: formData,
       })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        const errorMessage = Object.entries(data)
-          .map(([field, messages]) => {
-            return `${field}: ${
-              Array.isArray(messages) ? messages.join(', ') : messages
-            }`
-          })
-          .join('\n')
-
-        throw new Error(errorMessage || 'Failed to create course.')
-      }
 
       if (contentType === 'multiple') {
         for (let i = 0; i < lessons.length; i++) {
@@ -161,19 +143,15 @@ function CreateCourseForm({ onCourseCreated, onCancel }) {
             lessonData.append('youtube_url', lesson.youtube_url.trim())
           }
 
-          const lessonResponse = await fetch(`${API_BASE_URL}/api/lessons/`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('access')}`,
-            },
-            body: lessonData,
-          })
-
-          const lessonResult = await lessonResponse.json()
-
-          if (!lessonResponse.ok) {
+          try {
+            await apiJson('/api/lessons/', {
+              method: 'POST',
+              body: lessonData,
+            })
+          } catch (lessonError) {
             throw new Error(
-              `Course was created, but Lesson ${i + 1} failed: ${JSON.stringify(lessonResult)}`
+              `Course was created, but Lesson ${i + 1} failed: ${lessonError.message}`,
+              { cause: lessonError }
             )
           }
         }

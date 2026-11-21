@@ -9,7 +9,6 @@ import {
   ClipboardList,
   CheckCircle,
   XCircle,
-  RefreshCw,
   ShieldCheck,
   Search,
   LogOut,
@@ -17,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { apiJson } from '../service/apiService'
 
 const API = {
   overview: '/api/auth/admin/overview/',
@@ -86,62 +86,7 @@ function AdminDashboard() {
       throw new Error('Your session has expired. Please sign in again.')
     }
 
-    const headers = {
-      Authorization: `Bearer ${accessToken}`,
-      ...options.headers,
-    }
-
-    if (
-      options.body &&
-      !(options.body instanceof FormData)
-    ) {
-      headers['Content-Type'] = 'application/json'
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    })
-
-    if (response.status === 204) {
-      if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`)
-      }
-
-      return null
-    }
-
-    const contentType = response.headers.get('content-type') || ''
-    const responseText = await response.text()
-
-    let data = null
-
-    if (contentType.includes('application/json')) {
-      try {
-        data = responseText ? JSON.parse(responseText) : null
-      } catch {
-        throw new Error(`Invalid JSON response from ${url}`)
-      }
-    } else {
-      const preview = responseText.slice(0, 180)
-
-      throw new Error(
-        `The API returned HTML or another non-JSON response. ` +
-        `Endpoint: ${url}. HTTP ${response.status}. ` +
-        `Check Django URLs and server logs. ${preview}`
-      )
-    }
-
-    if (!response.ok) {
-      throw new Error(
-        data?.detail ||
-        data?.message ||
-        data?.error ||
-        `Request failed with HTTP ${response.status}`
-      )
-    }
-
-    return data
+    return apiJson(url, options)
   }, [accessToken])
 
   const loadDashboard = useCallback(async () => {
@@ -225,7 +170,11 @@ function AdminDashboard() {
   }, [accessToken, request])
 
   useEffect(() => {
-    loadDashboard()
+    const timer = window.setTimeout(() => {
+      loadDashboard()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [loadDashboard])
 
   async function performAction(

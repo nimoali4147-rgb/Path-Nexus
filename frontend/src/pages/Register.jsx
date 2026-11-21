@@ -1,6 +1,7 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { apiJson } from '../service/apiService'
 import {
   User,
   Mail,
@@ -9,8 +10,6 @@ import {
   UserPlus,
   ArrowRight,
 } from 'lucide-react'
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -53,39 +52,16 @@ function Register() {
     setLoading(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/register/`, {
+      const data = await apiJson('/api/auth/register/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        auth: false,
+        body: {
           username: formData.username,
           email: formData.email,
           password: formData.password,
           role: formData.role,
-        }),
+        },
       })
-
-      const responseText = await response.text()
-
-      console.log('Status:', response.status)
-      console.log('Content-Type:', response.headers.get('content-type'))
-      console.log('Server response:', responseText)
-
-      let data
-
-      try {
-        data = JSON.parse(responseText)
-      } catch {
-        throw new Error(
-          `Server returned HTML instead of JSON. HTTP status: ${response.status}. Check the browser console.`
-        )
-      }
-
-      if (!response.ok) {
-        const messages = Object.values(data).flat().join(' ')
-        throw new Error(messages || 'Registration failed.')
-      }
 
       setSuccess(
         `Account created successfully! Welcome, ${data.username}. You can now log in.`
