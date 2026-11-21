@@ -4,6 +4,8 @@ from .models import Course, Enrollment, Lesson
 
 
 class CourseSerializer(serializers.ModelSerializer):
+    clear_video_file = serializers.BooleanField(
+        write_only=True, required=False)
     teacher_username = serializers.CharField(
         source="teacher.username",
         read_only=True,
@@ -22,6 +24,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "thumbnail",
             "video_file",
             "youtube_url",
+            "clear_video_file",
             "rejection_reason",
             "teacher",
             "teacher_username",
@@ -59,7 +62,34 @@ class CourseSerializer(serializers.ModelSerializer):
                 {"price": "A paid course must have a price above 0."}
             )
 
+        clear_video = attrs.get("clear_video_file", False)
+        video_file = (
+            None if clear_video
+            else attrs.get("video_file", getattr(self.instance, "video_file", None))
+        )
+        youtube_url = attrs.get(
+            "youtube_url",
+            getattr(self.instance, "youtube_url", ""),
+        )
+
+        if video_file and youtube_url:
+            raise serializers.ValidationError(
+                "Choose either an uploaded course video or a YouTube URL, not both."
+            )
+
         return attrs
+
+    def create(self, validated_data):
+        validated_data.pop("clear_video_file", False)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        clear_video = validated_data.pop("clear_video_file", False)
+
+        if clear_video and instance.video_file:
+            instance.video_file.delete(save=False)
+
+        return super().update(instance, validated_data)
 
     def validate_title(self, value):
         teacher = self.context["request"].user
@@ -135,6 +165,9 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
 
 class LessonSerializer(serializers.ModelSerializer):
+    clear_video_file = serializers.BooleanField(
+        write_only=True, required=False)
+
     class Meta:
         model = Lesson
         fields = [
@@ -144,15 +177,19 @@ class LessonSerializer(serializers.ModelSerializer):
             "description",
             "video_file",
             "youtube_url",
+            "clear_video_file",
             "order",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "course", "created_at"]
 
     def validate(self, attrs):
-        video_file = attrs.get(
-            "video_file",
-            getattr(self.instance, "video_file", None),
+        video_file = (
+            None if attrs.get("clear_video_file", False)
+            else attrs.get(
+                "video_file",
+                getattr(self.instance, "video_file", None),
+            )
         )
 
         youtube_url = attrs.get(
@@ -171,6 +208,18 @@ class LessonSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    def create(self, validated_data):
+        validated_data.pop("clear_video_file", False)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        clear_video = validated_data.pop("clear_video_file", False)
+
+        if clear_video and instance.video_file:
+            instance.video_file.delete(save=False)
+
+        return super().update(instance, validated_data)
 
 
 class TeacherStudentSerializer(serializers.ModelSerializer):

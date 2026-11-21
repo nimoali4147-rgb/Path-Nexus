@@ -48,8 +48,16 @@ class IsCourseOwnerOrAdmin(BasePermission):
 
 
 class IsLessonOwnerOrAdmin(BasePermission):
+    message = "Only the verified course owner or a platform admin can manage lessons."
+
+    def has_permission(self, request, view):
+        return is_admin(request.user) or is_verified_teacher(request.user)
+
     def has_object_permission(self, request, view, obj):
         return (
             is_admin(request.user)
-            or obj.course.teacher_id == request.user.id
+            or (
+                is_verified_teacher(request.user)
+                and obj.course.teacher_id == request.user.id
+            )
         )

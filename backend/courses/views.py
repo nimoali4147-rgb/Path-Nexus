@@ -100,32 +100,31 @@ class CourseViewSet(viewsets.ModelViewSet):
 
         return super().update(request, *args, **kwargs)
 
-        def destroy(self, request, *args, **kwargs):
-            course = self.get_object()
+    def destroy(self, request, *args, **kwargs):
+        course = self.get_object()
 
-            # Admin can delete any course.
-            if is_admin(request.user):
-                return super().destroy(request, *args, **kwargs)
-
-            # Teachers can delete only their own courses.
-            if course.teacher_id != request.user.id:
-                raise PermissionDenied(
-                    "You can delete only your own course."
-                )
-
-            # Teachers cannot delete courses with enrollments.
-            if course.enrollments.exists():
-                raise ValidationError(
-                    "Students are enrolled in this course. Unpublish it instead."
-                )
-
-            # Teachers cannot delete courses with payment records.
-            if course.payments.exists():
-                raise ValidationError(
-                    "This course has payment records. Unpublish it instead."
-                )
-
+        # Admins can delete courses when necessary.
+        if is_admin(request.user):
             return super().destroy(request, *args, **kwargs)
+
+        # Teachers may delete only their own courses.
+        if course.teacher_id != request.user.id:
+            raise PermissionDenied(
+                "You can delete only your own course."
+            )
+
+        # Keep student access and payment history safe.
+        if course.enrollments.exists():
+            raise ValidationError(
+                "Students are enrolled in this course. Unpublish it instead."
+            )
+
+        if course.payments.exists():
+            raise ValidationError(
+                "This course has payment records. Unpublish it instead."
+            )
+
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
@@ -440,14 +439,18 @@ class LessonViewSet(viewsets.ModelViewSet):
                 course__teacher=user
             ).select_related("course")
 
-        if user.is_authenticated:
+        if user.is_authenticated and user.role == "student":
             return Lesson.objects.filter(
-                models.Q(course__status=Course.Status.PUBLISHED)
+                models.Q(
+                    course__status=Course.Status.PUBLISHED,
+                    course__is_free=True,
+                )
                 | models.Q(course__enrollments__student=user)
             ).distinct().select_related("course")
 
         return Lesson.objects.filter(
-            course__status=Course.Status.PUBLISHED
+            course__status=Course.Status.PUBLISHED,
+            course__is_free=True,
         ).select_related("course")
 
     def get_permissions(self):

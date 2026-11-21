@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APIClient
 
-from courses.models import Course, Enrollment
+from courses.models import Course, Enrollment, Lesson
 from students.models import StudentProfile
 from teachers.models import TeacherProfile
 
@@ -146,3 +146,104 @@ class CourseWorkflowTests(TestCase):
         self.assertFalse(
             Enrollment.objects.filter(student=self.student, course=course).exists()
         )
+
+    def test_verified_teacher_can_create_update_and_delete_own_lesson(self):
+        course = Course.objects.create(
+            title="Lesson Course",
+            description="Course description",
+            category="Programming",
+            teacher=self.teacher,
+        )
+        self.client.force_authenticate(self.teacher)
+
+        create_response = self.client.post(
+            reverse("lesson-list"),
+            {
+                "course": course.id,
+                "title": "Introduction",
+                "description": "First lesson",
+                "youtube_url": "https://www.youtube.com/watch?v=abc123xyz",
+                "order": 1,
+            },
+            format="multipart",
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        lesson_id = create_response.data["id"]
+
+        update_response = self.client.patch(
+            reverse("lesson-detail", args=[lesson_id]),
+            {"title": "Updated introduction"},
+            format="multipart",
+        )
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_response.data["title"], "Updated introduction")
+
+        delete_response = self.client.delete(
+            reverse("lesson-detail", args=[lesson_id])
+        )
+        self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Lesson.objects.filter(pk=lesson_id).exists())
+
+    def test_unverified_teacher_cannot_manage_lessons(self):
+        course = Course.objects.create(
+            title="Protected Course",
+            description="Course description",
+            category="Programming",
+            teacher=self.unverified_teacher,
+        )
+        lesson = Lesson.objects.create(
+            course=course,
+            title="Existing lesson",
+            youtube_url="https://www.youtube.com/watch?v=abc123xyz",
+        )
+        self.client.force_authenticate(self.unverified_teacher)
+
+        response = self.client.patch(
+            reverse("lesson-detail", args=[lesson.id]),
+            {"title": "Attempted update"},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_teacher_cannot_delete_course_with_enrollments(self):
+        course = Course.objects.create(
+            title="Enrolled Course",
+            description="Course description",
+            category="Programming",
+            teacher=self.teacher,
+        )
+        Enrollment.objects.create(student=self.student, course=course)
+        self.client.force_authenticate(self.teacher)
+
+        response = self.client.delete(
+            reverse("course-detail", args=[course.id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Course.objects.filter(pk=course.id).exists())
+
+    def test_paid_course_lessons_are_hidden_until_student_enrolls(self):
+        course = Course.objects.create(
+            title="Paid Lesson Course",
+            description="Course description",
+            category="Programming",
+            teacher=self.teacher,
+            status=Course.Status.PUBLISHED,
+            price="1200.00",
+            is_free=False,
+        )
+        lesson = Lesson.objects.create(
+            course=course,
+            title="Paid lesson",
+            youtube_url="https://www.youtube.com/watch?v=abc123xyz",
+        )
+
+        anonymous_response = self.client.get(reverse("lesson-list"))
+        self.assertNotIn(lesson.id, [item["id"] for item in anonymous_response.data])
+
+        self.client.force_authenticate(self.student)
+        student_response = self.client.get(reverse("lesson-list"))
+        self.assertNotIn(lesson.id, [item["id"] for item in student_response.data])
+
+        Enrollment.objects.create(student=self.student, course=course)
+        enrolled_response = self.client.get(reverse("lesson-list"))
+        self.assertIn(lesson.id, [item["id"] for item in enrolled_response.data])

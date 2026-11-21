@@ -82,8 +82,17 @@ class AdminOverviewView(APIView):
         return Response(data)
 
 
+def is_platform_admin(user):
+    return user.is_authenticated and (
+        user.is_superuser or user.is_staff
+    )
+
 # ADMIN USER SERIALIZER
+
+
 class AdminUserSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -101,10 +110,14 @@ class AdminUserSerializer(serializers.ModelSerializer):
             "id",
             "username",
             "email",
+            "role",
             "is_staff",
             "is_superuser",
             "date_joined",
         ]
+
+    def get_role(self, obj):
+        return "admin" if is_platform_admin(obj) else obj.role
 
 
 # ADMIN: VIEW ALL USERS
